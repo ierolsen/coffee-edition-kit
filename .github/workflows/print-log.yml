@@ -1,0 +1,58 @@
+name: print-log
+
+# The Pico calls this after the printer finished a job (it can only read the repo,
+# plus trigger this workflow). It adds "printed" or "failed" to the print log on main.
+# Inputs are checked by scripts/printlog.py before anything is written.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: queue job id
+        required: true
+        type: string
+      state:
+        description: printed or failed
+        required: true
+        type: string
+      printer_job:
+        description: printer job number(s), comma separated
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: main-writer
+  cancel-in-progress: false
+
+jobs:
+  log:
+    # the public template has no printer: only copies made from it run this
+    if: github.repository != 'ierolsen/coffee-edition-kit'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record what the Pico reported
+        env:
+          JOB: ${{ inputs.job }}
+          STATE: ${{ inputs.state }}
+          PRINTER_JOB: ${{ inputs.printer_job }}
+        run: python3 scripts/printlog.py report --job "$JOB" --state "$STATE" --printer-job "$PRINTER_JOB"
+
+      - name: Commit the log
+        env:
+          JOB: ${{ inputs.job }}
+          STATE: ${{ inputs.state }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add log
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "log: $STATE $JOB"
+          git pull -q --rebase origin main
+          git push -q origin HEAD:main

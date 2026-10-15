@@ -1,0 +1,57 @@
+name: test
+
+# Lays out the edition fixtures on the same kind of runner that builds the real
+# issues: the sample issue must stay on two pages, long issues must gain pages in
+# the right place, and broken issues must be refused. Also checks the Pico's clock
+# arithmetic and printer search, and the nightly writer's rules (which note, which
+# date, no late or second paper). Runs when code, notes or settings change on main,
+# and on pull requests.
+
+on:
+  push:
+    branches: [main]
+    paths: ['edition/**', 'scripts/**', 'pico/**', 'notes/**', 'printer.json', '.github/workflows/test.yml']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PDF tools
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq poppler-utils
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run the fixtures
+        run: node edition/test.mjs
+
+      - name: Check the Pico's clock and schedule arithmetic
+        run: python3 pico/test_clock.py
+
+      - name: Check the Pico's printer search (quick pass, then a patient one)
+        run: python3 pico/test_scan.py
+
+      - name: Check the Pico's settings check (placeholders are refused)
+        run: python3 pico/test_config.py
+
+      - name: Check the nightly rules (order, dates, guards, print log)
+        run: python3 scripts/test_nightly.py
+
+      - name: Keep the PDFs for a look
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: edition-fixtures
+          path: edition/out/
+          retention-days: 7

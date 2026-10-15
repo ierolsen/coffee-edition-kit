@@ -1,0 +1,18 @@
+{
+  "lang": "tr",
+  "nameplate": "Coffee Edition",
+  "weekdays": ["PAZAR", "PAZARTESİ", "SALI", "ÇARŞAMBA", "PERŞEMBE", "CUMA", "CUMARTESİ"],
+  "months": ["OCAK", "ŞUBAT", "MART", "NİSAN", "MAYIS", "HAZİRAN", "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK"],
+  "date": "{weekday}, {day} {month} {year}",
+  "issue": "SAYI {issue}",
+  "print_time": "BASKI {time}",
+  "continued": "{title}, devamı",
+  "sources": "Kaynak:",
+  "takeaway": "AKILDA KALSIN",
+  "continues": "Devamı {next}. sayfada · {page}/{pages}",
+  "last_page": "{nameplate} · Sayı {issue} · {page}/{pages}",
+  "shows": "Ne gösteriyor:",
+  "does": "Ne yapıyor:",
+  "says": "Ne diyor:",
+  "symbols": "Semboller:"
+}

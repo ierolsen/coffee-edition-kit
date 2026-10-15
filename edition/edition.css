@@ -1,0 +1,197 @@
+/* Coffee Edition: A4 page frames for one article issue.
+   Every page is a fixed 210 x 297 mm box with 40 px clear on each edge. The text flows in
+   three 12 px columns; edition.js decides which block lands on which page. Fonts are the
+   vendored files in fonts/, and every stack ends in vendored fonts only, so no character can
+   silently fall back to a system font (Gloock carries the arrows Newsreader lacks). The
+   nameplate is set in Grenze Gotisch, a blackletter, in espresso brown. */
+
+@font-face { font-family: "Newsreader"; src: url("fonts/Newsreader-Roman.ttf") format("truetype"); font-weight: 200 800; font-style: normal; font-display: block; }
+@font-face { font-family: "Newsreader"; src: url("fonts/Newsreader-Italic.ttf") format("truetype"); font-weight: 200 800; font-style: italic; font-display: block; }
+@font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: block; }
+@font-face { font-family: "Gloock"; src: url("fonts/Gloock-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: "Grenze Gotisch"; src: url("fonts/GrenzeGotisch.ttf") format("truetype"); font-weight: 100 900; font-style: normal; font-display: block; }
+
+:root {
+  --ink: #1c1814;
+  --ink-2: #2f2a26;
+  --muted: #4d4640;
+  --rule: #8c8079;
+  --rule-light: #d9d0c9;
+  --track: #e7e1dc;
+  --accent: #6a3b1f;
+  --espresso: #3b2416;
+  --paper: #ffffff;
+  --desk: #e9e4df;
+  --lh: 14.5px;
+  --serif: "Newsreader", "Gloock";
+  --mono: "IBM Plex Mono", "Gloock";
+  --display: "Grenze Gotisch";
+}
+
+@page { size: A4; margin: 0; }
+
+html, body { margin: 0; background: var(--paper); }
+body {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-optical-sizing: auto;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+@media screen {
+  body { background: var(--desk); padding: 24px 0; }
+  .page { margin: 0 auto 24px; }
+}
+
+.page {
+  width: 210mm;
+  height: 296.9mm;
+  box-sizing: border-box;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  background: var(--paper);
+  break-after: page;
+}
+.page:last-child { break-after: auto; }
+
+strong { font-weight: 600; }
+.accent { color: var(--accent); }
+.mono { font-family: var(--mono); }
+sub, sup { font-size: 0.75em; line-height: 0; }
+.concat { display: inline-block; width: 0.3em; height: 0.9em; margin: 0 0.2em; vertical-align: -0.15em; border-left: 1px solid currentColor; border-right: 1px solid currentColor; box-sizing: border-box; }
+
+/* front page: nameplate strip and article head */
+.masthead { display: flex; flex-direction: column; gap: 6px; }
+.mast-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.nameplate { font-family: var(--display); font-weight: 600; font-size: 36px; line-height: 38px; color: var(--espresso); }
+.mast-meta { display: flex; flex-direction: column; align-items: flex-end; font-family: var(--mono); font-size: 12px; line-height: 16px; letter-spacing: 0.06em; color: var(--muted); }
+.mast-rule { height: 2px; border-top: 3px solid var(--ink); border-bottom: 1px solid var(--ink); }
+.article-head { display: flex; flex-direction: column; gap: 5px; padding-bottom: 10px; border-bottom: 1px solid var(--ink); }
+.kicker-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font-family: var(--mono); font-size: 12px; line-height: 16px; }
+.kicker { font-weight: 500; letter-spacing: 0.1em; color: var(--accent); }
+.byline { color: var(--muted); }
+h1 { margin: 0; font-weight: 600; font-size: 30px; line-height: 34px; letter-spacing: -0.01em; text-wrap: balance; color: var(--ink); }
+.standfirst { margin: 0; font-style: italic; font-size: 15px; line-height: 20px; color: var(--ink-2); }
+
+/* running head on every later page */
+.running { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding-bottom: 5px; border-bottom: 1px solid var(--ink); }
+.running .nameplate { font-size: 21px; line-height: 22px; }
+.running-title { margin-left: 10px; font-style: italic; font-size: 13px; line-height: 18px; color: var(--muted); }
+.running-meta { font-family: var(--mono); font-size: 12px; line-height: 16px; letter-spacing: 0.06em; color: var(--muted); }
+
+/* results band: headline, the full-width table and its note */
+.results { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 15px; }
+.results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+h2 { margin: 0; font-weight: 600; font-size: 20px; line-height: 24px; letter-spacing: -0.005em; color: var(--ink); }
+.results .caption { margin: 2px 0 0; }
+
+/* the column flow */
+.flow {
+  flex: 1 1 auto;
+  min-height: 0;
+  column-count: 3;
+  column-gap: 20px;
+  column-rule: 1px solid var(--rule-light);
+  column-fill: balance;
+  font-size: 12px;
+  line-height: var(--lh);
+  hyphens: manual;
+  color: var(--ink);
+}
+.flow-end { height: 0; }
+.label { margin: 6px 0 2px; font-family: var(--mono); font-weight: 500; letter-spacing: 0.1em; color: var(--accent); break-after: avoid; }
+.flow > .unit:first-child > .label:first-child { margin-top: 0; }
+.results-head .label { margin: 0; }
+.p { margin: 0 0 3px; }
+.lead { font-family: var(--mono); color: var(--muted); }
+.lead.accent { color: var(--accent); }
+.caption { color: var(--ink-2); }
+.caption > strong:first-child { color: var(--ink); }
+
+.steps { margin: 4px 0 4px; display: flex; flex-direction: column; gap: 3px; break-inside: avoid; }
+.step { border: 1px solid var(--ink); padding: 1px 6px; display: flex; justify-content: space-between; gap: 8px; }
+.step.accent { border-color: var(--accent); color: var(--ink); }
+.step-symbol { font-style: italic; }
+
+.formulas {
+  margin: 6px 0;
+  border: 1px solid var(--ink);
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.formula { break-inside: avoid; }
+.formula .label { margin: 0; }
+.formula-name { margin-top: 2px; font-family: var(--mono); color: var(--muted); }
+.formula-line { font-style: italic; font-size: 16px; line-height: 21px; }
+.formula .p, .symbols { margin: 0; }
+.symbols { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--rule-light); color: var(--ink-2); break-inside: avoid; }
+.symbols > strong:first-child { color: var(--ink); }
+
+.code { margin: 0 0 4px; font-family: var(--mono); color: var(--ink); break-inside: avoid; }
+.code > div { white-space: pre; }
+
+.bullet { display: flex; gap: 6px; margin: 0 0 3px; break-inside: avoid; }
+.bullet::before { content: ""; flex: 0 0 auto; width: 5px; height: 5px; margin-top: 5px; background: var(--accent); }
+.bullet > p { margin: 0; min-width: 0; }
+
+/* tables: one line per row, numbers in lining figures */
+.table-wrap { margin: 2px 0 4px; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; }
+th, td { white-space: nowrap; padding: 1px 0; text-align: left; vertical-align: middle; }
+th { font-family: var(--mono); font-weight: 400; color: var(--muted); padding-bottom: 2px; border-bottom: 1px solid var(--ink); }
+td { border-bottom: 1px solid var(--track); }
+tbody tr.last td { border-bottom-color: var(--ink); }
+.r { text-align: right; padding-left: 5px; }
+td.muted { color: var(--muted); }
+td.delta { font-weight: 600; color: var(--accent); }
+.table-wrap.wide { margin: 0; }
+.wide th { letter-spacing: 0.04em; padding-bottom: 3px; }
+.wide .r { padding-left: 12px; }
+.wide .gap-left { padding-left: 8px; }
+.wide th.chart-h, .wide td.chart { width: 120px; padding-left: 16px; }
+.wide tr.axis td { border: 0; padding-top: 1px; font-family: var(--mono); color: var(--muted); }
+.dumbbell { position: relative; height: 15px; margin-right: 6px; }
+.dumbbell > i { position: absolute; display: block; }
+.dumbbell .track { left: 0; right: 0; top: 7px; height: 1px; background: var(--track); }
+.dumbbell .span { top: 6px; height: 3px; background: var(--accent); }
+.dumbbell .before, .dumbbell .after { top: 3.5px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; box-sizing: border-box; }
+.dumbbell .before { border: 1.5px solid var(--rule); background: var(--paper); }
+.dumbbell .after { background: var(--accent); }
+.dumbbell .tick { top: 0; transform: translateX(-50%); font-style: normal; }
+
+/* pictures: a slide, a diagram or a chart; a wide unit spans all three columns */
+.unit.wide { column-span: all; break-inside: avoid; margin: 2px 0 8px; }
+.figure { margin: 2px 0 4px; break-inside: avoid; }
+.figure img { display: block; width: 100%; height: auto; margin: 0 auto; }
+.figure.slide img { border: 1px solid var(--rule-light); box-sizing: border-box; }
+.unit.wide > .caption { margin-top: 3px; }
+.code-wide { padding: 4px 0 4px 10px; border-left: 2px solid var(--rule-light); }
+.bars { margin: 4px 0; display: grid; grid-template-columns: minmax(0, 40%) minmax(0, 1fr) auto; column-gap: 6px; row-gap: 3px; align-items: center; break-inside: avoid; }
+.bar-label { min-width: 0; }
+.bar-track { position: relative; height: 8px; background: var(--track); }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; display: block; background: var(--rule); }
+.bar-track.accent .bar-fill { background: var(--accent); }
+.bar-label.accent, .bar-value.accent { font-weight: 600; color: var(--ink); }
+.bar-value { text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+.stage { position: absolute; left: 0; top: 0; z-index: 10; background: var(--paper); }
+.diagram-stage { background: var(--paper); font-size: 14px; line-height: normal; }
+.diagram-stage svg { display: block; margin: 0 auto; }
+/* mermaid names its label boxes .label too; the section-label look must not reach them */
+.diagram-stage .label { margin: 0; font-weight: inherit; letter-spacing: normal; break-after: auto; }
+/* a picture keeps its caption in the same column */
+.unit.keep { break-inside: avoid; }
+
+/* closing band and footer */
+.closing { display: flex; gap: 16px; align-items: baseline; border-top: 3px solid var(--ink); padding-top: 7px; }
+.closing .label { flex: 0 0 auto; margin: 0; font-size: 12px; line-height: 16px; }
+.closing p { margin: 0; min-width: 0; font-style: italic; font-size: 16px; line-height: 20px; text-wrap: balance; color: var(--ink); }
+.foot { flex: 0 0 auto; height: 24px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; border-top: 1px solid var(--rule); padding-top: 7px; font-family: var(--mono); font-size: 12px; line-height: 16px; color: var(--muted); }
+.foot a { color: var(--muted); text-decoration: none; }

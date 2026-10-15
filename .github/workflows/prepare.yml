@@ -1,0 +1,66 @@
+name: prepare
+
+# Turns documents dropped into inbox/ (HTML, PDF, JPEG, Coffee Edition issues)
+# into print jobs for the Pico, and removes old jobs once a day.
+#   queue branch    the Pico's files, only the current jobs (rewritten every run)
+#   archive branch  every queued PDF, kept
+#   main            log/prints.md: what was queued and what was printed
+# An edition that fails its layout checks is not queued; the run goes red.
+
+on:
+  push:
+    branches: [main]
+    paths: ['inbox/**', 'printer.json']
+  schedule:
+    - cron: '23 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: main-writer
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    # the public template has no printer: only copies made from it run this
+    if: github.repository != 'ierolsen/coffee-edition-kit'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the queue and the archive
+        run: |
+          git fetch --no-tags --depth=1 origin +refs/heads/queue:refs/remotes/origin/queue || true
+          git fetch --no-tags --depth=1 --filter=blob:none origin +refs/heads/archive:refs/remotes/origin/archive || true
+          mkdir -p "$RUNNER_TEMP/queue" "$RUNNER_TEMP/archive"
+          if git rev-parse -q --verify origin/queue >/dev/null; then
+            git archive origin/queue | tar -x -C "$RUNNER_TEMP/queue"
+          fi
+
+      - name: Install PDF tools
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq poppler-utils
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build print jobs
+        run: python3 scripts/prepare.py --queue-root "$RUNNER_TEMP/queue" --archive-root "$RUNNER_TEMP/archive"
+
+      - name: Publish the queue, the archive and the log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          bash scripts/publish.sh "$RUNNER_TEMP/queue" "$RUNNER_TEMP/archive"
+
+      - name: Fail if an edition was rejected
+        run: |
+          if [ -s edition-failures.txt ]; then
+            cat edition-failures.txt
+            exit 1
+          fi

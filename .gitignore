@@ -1,0 +1,23 @@
+# secrets: the Pico's .env (Wi-Fi and GitHub token), never committed
+.env
+.env.*
+!.env.example
+# keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+# the Pico's state and the test lab's received pages
+state*.json
+tools/received/
+# build output
+edition/out/
+edition-failures.txt
+*.mpy
+# tools and editors
+__pycache__/
+.venv/
+node_modules/
+.DS_Store

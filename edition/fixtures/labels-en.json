@@ -1,0 +1,18 @@
+{
+  "lang": "en",
+  "nameplate": "Coffee Edition",
+  "weekdays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
+  "months": ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"],
+  "date": "{weekday}, {day} {month} {year}",
+  "issue": "ISSUE {issue}",
+  "print_time": "PRINTED {time}",
+  "continued": "{title}, continued",
+  "sources": "Source:",
+  "takeaway": "THE TAKEAWAY",
+  "continues": "Continued on page {next} · {page}/{pages}",
+  "last_page": "{nameplate} · Issue {issue} · {page}/{pages}",
+  "shows": "What it shows:",
+  "does": "What it does:",
+  "says": "In words:",
+  "symbols": "Symbols:"
+}

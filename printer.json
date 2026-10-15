@@ -1,0 +1,15 @@
+{
+  "formats": [
+    "application/pdf",
+    "image/pwg-raster",
+    "image/jpeg"
+  ],
+  "jpeg_dpi": 300,
+  "jpeg_quality": 85,
+  "grayscale": false,
+  "keep_days": 3,
+  "pwg_dpi": 300,
+  "timezone": "UTC",
+  "edition_print_time": "07:30",
+  "nightly": "off"
+}

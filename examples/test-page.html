@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>coffee-edition test page</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: "Helvetica Neue", Helvetica, "DejaVu Sans", Arial, sans-serif;
+         color: #111; font-size: 11.5pt; line-height: 1.45; }
+  .kicker { font-size: 9pt; letter-spacing: .12em; text-transform: uppercase; color: #555; }
+  h1 { font-size: 26pt; margin: 4mm 0 2mm; font-weight: 700; letter-spacing: -.01em; }
+  .lead { font-size: 13pt; color: #333; margin: 0 0 9mm; }
+  .flow { display: flex; align-items: center; gap: 3mm; margin: 0 0 10mm; }
+  .box { border: 1.2px solid #111; border-radius: 3mm; padding: 3mm 4mm; font-weight: 600;
+         font-size: 10.5pt; text-align: center; }
+  .arrow { font-size: 14pt; color: #555; }
+  h2 { font-size: 12pt; margin: 0 0 3mm; border-bottom: 1px solid #ccc; padding-bottom: 1.5mm; }
+  ul { list-style: none; padding: 0; margin: 0 0 10mm; }
+  li { padding: 2mm 0; border-bottom: 1px dotted #ccc; }
+  li b { display: inline-block; width: 9mm; }
+  .note { font-size: 10pt; color: #444; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; font-size: 8.5pt; color: #777;
+           border-top: 1px solid #ddd; padding-top: 2mm; }
+</style>
+</head>
+<body>
+  <div class="kicker">coffee-edition · test page</div>
+  <h1>If you can read this, the chain works.</h1>
+  <p class="lead">GitHub Actions made this page in the cloud; the Pico fetched it over your Wi-Fi
+     and sent it to the printer. The same path works while your computer is off.</p>
+
+  <div class="flow">
+    <div class="box">Claude</div><div class="arrow">→</div>
+    <div class="box">GitHub</div><div class="arrow">→</div>
+    <div class="box">Pico 2 W</div><div class="arrow">→</div>
+    <div class="box">Printer</div>
+  </div>
+
+  <h2>What this page tested</h2>
+  <ul>
+    <li><b>1</b>The Pico joined your Wi-Fi</li>
+    <li><b>2</b>It found the printer on the network by itself (no router settings)</li>
+    <li><b>3</b>It downloaded the job from GitHub</li>
+    <li><b>4</b>It streamed the file to the printer in small pieces (IPP)</li>
+    <li><b>5</b>It will not print the same job twice</li>
+  </ul>
+
+  <p class="note">Character test: café, naïve, Ærø, Łódź, Straße, ÀÉÎÕÜ</p>
+
+  <footer>coffee-edition · Claude → GitHub → Pico → printer</footer>
+</body>
+</html>

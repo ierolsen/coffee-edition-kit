@@ -1,0 +1,326 @@
+{
+  "version": 1,
+  "issue": 2,
+  "date": "2026-10-17",
+  "print_time": "07:30",
+  "edition": "MORNING EDITION",
+  "note": "notes/002-raven.md",
+  "short_title": "Raven",
+  "kicker": "TODAY'S PAPER · TECHNICAL REPORT",
+  "byline": "EverMind AI · arXiv 2609.33439",
+  "headline": "One agent that plans the work of all the others",
+  "standfirst": "Raven treats every model with its harness as a building block and puts a host on top that turns a request into a checked graph of agent calls.",
+  "sources": [
+    {
+      "text": "arxiv.org/abs/2609.33439",
+      "url": "https://arxiv.org/abs/2609.33439"
+    },
+    {
+      "text": "CC BY 4.0, adapted",
+      "url": "https://creativecommons.org/licenses/by/4.0/"
+    }
+  ],
+  "takeaway": "Splitting a job across specialist agents works when the plan is a graph that is checked before it runs and every handoff is a recorded file, not a chat.",
+  "front": [
+    {
+      "type": "label",
+      "text": "IN SHORT"
+    },
+    {
+      "type": "p",
+      "text": "**Raven** is an open-source multi-agent system from EverMind AI. It treats every runnable pair of a model and its **harness**, the tools, memory, skills and rules wrapped around the model, as one building block. A **host agent** splits a request into subtasks, picks an agent for each, wires their order as a graph and merges the results."
+    },
+    {
+      "type": "p",
+      "text": "On a new benchmark that scores plans before anything runs, Raven picks the right specialists in the right order more often than Claude Code and Hermes Agent on both models tested. The whole plan is right 10.4 and 10.5 points more often than with the stronger of the two."
+    },
+    {
+      "type": "label",
+      "text": "WHY IT MATTERS"
+    },
+    {
+      "type": "p",
+      "text": "What an agent can do depends on its harness as much as on its model, and harnesses keep growing. Hand-built ones stop scaling, and one tuned for code carries assumptions that fail on slides. Raven stops building one bigger harness and composes specialised ones instead: Raven-Research, Raven-Code, Raven-Design and Raven-Oncall, plus agents built elsewhere, such as Claude Code, Codex, Hermes Agent and OpenClaw, connected through adapters."
+    },
+    {
+      "type": "label",
+      "text": "FROM REQUEST TO GRAPH"
+    },
+    {
+      "type": "p",
+      "text": "The paper's running example asks for a survey of recent work on AI for AI research, a reproduction of the leading algorithms and a web page with the results. Two research calls can start at once, the code call needs both, and the design call needs the code's results."
+    },
+    {
+      "type": "diagram",
+      "mermaid": "flowchart TD\n  A[\"Research<br/>algorithms\"] --> C[\"Code<br/>reproduce\"]\n  B[\"Research<br/>benchmarks\"] --> C\n  C --> D[\"Design<br/>results page\"]"
+    },
+    {
+      "type": "caption",
+      "text": "each box is one agent call and each arrow an artifact the next call reads. The two research calls run side by side; nothing starts before what it needs is recorded."
+    },
+    {
+      "type": "steps",
+      "items": [
+        {
+          "text": "Plan: build the graph back from the deliverable"
+        },
+        {
+          "text": "Admit: five groups of checks, stop at the first failure"
+        },
+        {
+          "text": "Run: start a node once its inputs are recorded"
+        },
+        {
+          "text": "Judge: a failed verdict goes back to the host"
+        },
+        {
+          "text": "Reuse: later graphs point at finished nodes"
+        }
+      ]
+    },
+    {
+      "type": "caption",
+      "text": "the stages in order. No worker starts until the graph is admitted, so a broken plan costs one host turn, not a half-finished run."
+    },
+    {
+      "type": "label",
+      "text": "THE CHECKS BEFORE ANY WORK"
+    },
+    {
+      "type": "p",
+      "text": "Admission runs five groups of checks: format; graph structure (unique ids, dependencies and inputs that resolve, file paths kept inside the workspace, no cycles); capability (wiring the chosen agent can honour); status (each agent registered and enabled); environment (no delegation from inside a sub-agent, a shared dispatch budget, user approval when asked). The first failure comes back naming the node or field, often with the fix."
+    },
+    {
+      "type": "p",
+      "text": "Every handoff is a recorded artifact in an append-only ledger that keeps each node's prompt, output and transcript. Text pasted into a prompt from another node is marked as untrusted data, kept apart from the host's own instructions."
+    },
+    {
+      "type": "label",
+      "text": "THE THEORY IN ONE LINE"
+    },
+    {
+      "type": "p",
+      "text": "Composition pays off, the paper proves, when three things hold: the agents' strengths **complement** each other, their **handoffs** fit, and **planning and execution errors** stay bounded. Then the composed system solves tasks that no single available agent solves reliably on the same budget, coordination cost included. These are sufficient conditions; whether real agents meet them is, as the paper says, a separate question."
+    },
+    {
+      "type": "label",
+      "text": "MEMORY AND SKILLS"
+    },
+    {
+      "type": "p",
+      "text": "Experience carries over between tasks. A host archive keeps user context, and an optional memory backend, **EverOS**, stores episodes, facts, profiles, past cases and skills as Markdown records. **Skill Forge** serves reusable procedures as Agent Skills `SKILL.md` files, picked from a curated catalogue and updated from experience."
+    },
+    {
+      "type": "label",
+      "text": "HOW TO USE IT"
+    },
+    {
+      "type": "bullets",
+      "items": [
+        "Write a multi-agent plan as a graph with named inputs and outputs, and check it before any agent runs.",
+        "Hand work over as files or records, never as chat: the next agent and a reviewer then see the same thing.",
+        "Mark text copied from another agent's output as untrusted data in the next prompt.",
+        "Tune the harness before the model: in the reported runs, edits around a frozen model moved held-out scores 5 to 15 points."
+      ]
+    }
+  ],
+  "results": {
+    "headline": "Better plans on both models, on every metric",
+    "label": "RESULTS · MAOB, FIGURE 13",
+    "table": {
+      "columns": [
+        {
+          "label": "METRIC"
+        },
+        {
+          "label": "WHAT IT CHECKS",
+          "tone": "muted"
+        },
+        {
+          "label": "QWEN3.8-27B",
+          "align": "right"
+        },
+        {
+          "label": "DEEPSEEK-V4-FLASH",
+          "align": "right"
+        }
+      ],
+      "rows": [
+        [
+          "Partial order",
+          "the order of shared nodes",
+          [
+            78.0,
+            95.0
+          ],
+          [
+            84.4,
+            91.8
+          ]
+        ],
+        [
+          "Node F1",
+          "the right specialists",
+          [
+            77.6,
+            92.3
+          ],
+          [
+            85.4,
+            96.3
+          ]
+        ],
+        [
+          "Exact Match",
+          "the whole plan",
+          [
+            60.7,
+            71.1
+          ],
+          [
+            76.2,
+            86.7
+          ]
+        ],
+        [
+          "Edge F1",
+          "the right dependencies",
+          [
+            74.4,
+            81.2
+          ],
+          [
+            81.3,
+            89.7
+          ]
+        ]
+      ],
+      "chart": {
+        "column": 2,
+        "label": "QWEN3.8-27B, 0-100",
+        "min": 0,
+        "max": 100,
+        "ticks": [
+          0,
+          50,
+          100
+        ]
+      },
+      "delta": {
+        "column": 2,
+        "label": "GAIN"
+      }
+    },
+    "caption": "in each cell the left score is the stronger of Claude Code and Hermes Agent on that metric and model, the right one is Raven. Scores are the paper's 0 to 1 scale times 100, higher is better; the chart shows Qwen3.8-27B, rows in order of its gain, empty circle the best baseline, filled circle Raven. Only planning is scored: for each of 140 tasks a system submits a graph, which is compared with a reference before any agent runs.",
+    "blocks": [
+      {
+        "type": "label",
+        "text": "THE BASELINES SWAP PLACES"
+      },
+      {
+        "type": "p",
+        "text": "On Qwen3.8-27B, Hermes Agent beats Claude Code on all four metrics; on DeepSeek-V4-Flash, Claude Code leads on three. Raven leads under both. Changing the model hurts the others more: Claude Code's Exact Match falls from 76.2 to 46.4, Raven's from 86.7 to 71.1."
+      },
+      {
+        "type": "label",
+        "text": "BETTER WITHOUT TRAINING"
+      },
+      {
+        "type": "bars",
+        "prefix": "+",
+        "decimals": 1,
+        "rows": [
+          [
+            "AppWorld",
+            15.4
+          ],
+          [
+            "BrowseComp+",
+            13.9
+          ],
+          [
+            "LiveCodeBench",
+            13.7
+          ],
+          [
+            "Omni-MATH",
+            11.7
+          ],
+          [
+            "Terminal-Bench-2",
+            9.3
+          ],
+          [
+            "GDPval",
+            9.2
+          ],
+          [
+            "SWE-bench Verified",
+            5.1
+          ]
+        ],
+        "accent": [
+          0
+        ]
+      },
+      {
+        "type": "caption",
+        "text": "held-out Pass@1 gain in points after evolving the harness around a frozen Qwen3.6-27B: prompts, domain knowledge, runtime rules and settings change, the weights do not. AppWorld goes from 41.3 to 56.7. These are the team's earlier HarnessBank results, reproduced in Raven's Table 11; six of the seven pass the source's paired test, SWE-bench Verified on 26 test tasks does not."
+      },
+      {
+        "type": "label",
+        "text": "THE FOUR SPECIALISTS"
+      },
+      {
+        "type": "table",
+        "columns": [
+          {
+            "label": "AGENT"
+          },
+          {
+            "label": "NEXT → RAVEN",
+            "align": "right"
+          }
+        ],
+        "rows": [
+          [
+            "Research",
+            "68.9 → **76.5**"
+          ],
+          [
+            "Code",
+            "7.0 → **16.5**"
+          ],
+          [
+            "Design",
+            "52.4 → **72.9**"
+          ],
+          [
+            "Oncall",
+            "11 → **14**"
+          ]
+        ]
+      },
+      {
+        "type": "caption",
+        "text": "DeepResearch Mixed accuracy, SWE-Refactor score, PresentBench score and scientific tasks solved out of 17, each on one shared model; NEXT is the strongest other system on it. Research and Code run on DeepSeek-V4-Flash against DeepSeek-Harness and the leaderboard entries, Design on GPT-5.6 Luna and Oncall on Claude Opus 5 against Claude Code. Raven-Code leads in six of eight settings, Raven-Research in all three model groups; Oncall costs 5.10 USD a task against 13.60."
+      },
+      {
+        "type": "label",
+        "text": "SKILLS HELP RAVEN MORE"
+      },
+      {
+        "type": "p",
+        "text": "In the team's SkillCorpus paper, curated skills improve all twelve comparisons: Raven and OpenClaw, two models each, three benchmarks. Given the same skills on SkillsBench with Qwen3.5-397B-A17B, Raven rises from 9.2 to 22.6 Pass@1 and OpenClaw from 11.1 to 16.9. Raven gains more on two of the three benchmarks, OpenClaw on GDPval."
+      },
+      {
+        "type": "label",
+        "text": "LIMITS"
+      },
+      {
+        "type": "p",
+        "text": "The evolution and skill results come from the team's HarnessBank and SkillCorpus papers, not new runs. MAOB scores the plan, not the work: a perfect graph says nothing about whether the agents then succeed. Each specialist is measured on its own benchmarks and models, so the numbers do not add up to one end-to-end test."
+      }
+    ]
+  }
+}
