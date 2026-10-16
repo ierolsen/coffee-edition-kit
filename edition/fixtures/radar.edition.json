@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "issue": 1,
+  "date": "2026-10-17",
+  "print_time": "10:00",
+  "radar": {
+    "date": "2026-10-17",
+    "scanned": {
+      "hf": 150,
+      "arxiv": 403,
+      "github": 8,
+      "blogs": 10
+    },
+    "headline": "100× faster video answers, an open agent that runs code, better reasoning without training",
+    "items": [
+      {
+        "id": "arxiv:2610.18615",
+        "area": "VIDEO",
+        "signal": "HF 344 upvotes",
+        "name": "VideoJev",
+        "what": "A family of models for video agents that score the candidate answers directly instead of generating them token by token.",
+        "how": "It swaps a multimodal LLM's output layer for a scoring head that rates time intervals and answer options against the video. The video is processed once and cached; new questions are answered without reading it again (**Cached inference**), and many questions are scored in one forward pass (**Joint inference**).",
+        "when": "For agents that ask short, repeated questions about the same video. It does not write free text; it picks from the given candidates.",
+        "number": {
+          "value": "100×+",
+          "says": "faster on video QA, with results close to the backbone in Thinking mode",
+          "quote": "both achieve performance comparable to their backbones in Thinking mode, with measured inference speedups exceeding 100\\times"
+        },
+        "code": "github.com/MCG-NJU/VideoJev",
+        "source": "Nanjing University MCG · arXiv 2610.18615"
+      },
+      {
+        "id": "arxiv:2610.22200",
+        "area": "AGENTS",
+        "signal": "HF 264 upvotes",
+        "name": "OpenGCUA",
+        "what": "An open project that releases every layer of a general computer-use agent, one that works by clicking on the screen and by running code.",
+        "how": "The agent can act in the GUI, but it also gets intermediate results by running code, so one step's output decides the next. It also moves some observation and task-state decisions from fixed harness rules to the model (**harness-to-model decision transfer**).",
+        "when": "If you are building your own computer-use agent: the code, the prompts and the run logs of eight models are open.",
+        "number": {
+          "value": "+19.6 pts",
+          "says": "mean partial score on OSWorld-v2 across eight models; 53.0% fewer steps per task",
+          "quote": "raising mean partial score by +19.6 points and reducing reported steps per task by an average of 53.0% relative to batched GUI-only execution"
+        },
+        "code": "github.com/Tongyi-MAI/OpenGCUA",
+        "source": "Tongyi-MAI · arXiv 2610.22200"
+      },
+      {
+        "id": "arxiv:2610.21601",
+        "area": "TRAINING",
+        "signal": "HF 449 upvotes",
+        "name": "Waypoint-OPD",
+        "what": "A distillation method that passes on only the preferences that changed consistently while an RL-trained teacher learned.",
+        "how": "The teacher's shift in log probabilities from before to after RL becomes the lesson, applied to text the student writes. Waypoint-OPD also looks at a checkpoint in between: if the early and late shifts agree, the shift goes through; if they point in opposite directions, it is held back (**gate**). The extra cost is one scoring pass.",
+        "when": "To carry a small RL teacher's gains into larger models; tested on math and code reasoning.",
+        "number": {
+          "value": "+2.18 pts",
+          "says": "over Direct-OPD in math with a Qwen3-8B student: from 53.96 to 56.14",
+          "quote": "Waypoint-OPD improves over Direct-OPD by 2.18, 1.59, and 1.89 percentage points, respectively"
+        },
+        "code": "github.com/hhhbxloveai/WaypointOPD",
+        "source": "Hou et al. · arXiv 2610.21601"
+      },
+      {
+        "id": "arxiv:2610.20642",
+        "area": "REASONING",
+        "signal": "arXiv, 16 Oct",
+        "name": "CoTS",
+        "what": "A training-free decoding method: at every step the model balances committing to one token against keeping alternatives open.",
+        "how": "It compares the probabilities of the two most likely tokens. When one clearly leads, the input stays close to the chosen token; when they are close, a weighted mix of the likely tokens (a soft representation) gets more say. No thresholds to tune and no extra forward passes.",
+        "when": "To make an open model better at math and science questions without retraining; tested with Qwen3.5 and Gemma-4.",
+        "number": {
+          "value": "+3.44 pts",
+          "says": "over the best training-free latent method on Qwen3.5-9B; 81.48% on average across six benchmarks",
+          "quote": "achieving 81.48% average accuracy on Qwen3.5-9B and 86.76% on Gemma-4-12B-IT, outperforming the strongest latent baseline by 3.44 and 3.74 percentage points, respectively"
+        },
+        "code": "github.com/OkinoYu/CoTSReasoning",
+        "source": "Yu et al. · arXiv 2610.20642"
+      },
+      {
+        "id": "github:xerj-org/xerj",
+        "area": "TOOL",
+        "signal": "1647 stars today",
+        "name": "XERJ",
+        "what": "A local search engine for coding agents: instead of reading files one by one, the agent pulls just the piece it needs.",
+        "how": "It indexes code, docs, logs and PDFs with one command and runs BM25, kNN and hybrid search over them. It speaks the Elasticsearch API, connects to agents over MCP and ships as a single static binary.",
+        "when": "To cut an agent's token use on a large codebase. Its main use is \"reference coding\": the agent indexes open-source repos close to its task and studies how they solved it.",
+        "number": {
+          "value": "2.7×",
+          "says": "fewer output tokens at the same 16/16 solve rate (the project's own study)",
+          "quote": "In a controlled study that cut a coding agent's output tokens by 2.7x at the same 16/16 solve rate"
+        },
+        "code": "github.com/xerj-org/xerj",
+        "source": "xerj-org · GitHub trending"
+      }
+    ],
+    "also": [
+      {
+        "id": "arxiv:2610.18773",
+        "title": "Jeva: System One Models from First Principles",
+        "text": "Designs System One models from first principles: it can say when no answer fits, and reordering the options never changes its decision (HF 291 upvotes)."
+      },
+      {
+        "id": "arxiv:2610.18829",
+        "title": "OmniCompass: A Holistic Benchmark for Omni-Modal Video Grounding and Understanding",
+        "text": "A new benchmark for understanding video together with its sound; the most upvoted paper of the three days (563 upvotes)."
+      },
+      {
+        "id": "arxiv:2610.17953",
+        "title": "Agent-Reflex: Teaching Language Agents to Act Reflectively",
+        "text": "A three-stage method that trains agents to recover from noisy tool responses and user corrections; 29.1 on AgentNoiseBench with Qwen3-8B."
+      },
+      {
+        "id": "arxiv:2610.18813",
+        "title": "Self-Evolving Agent Harness",
+        "text": "The theory of improving an agent's prompts, memory and tools without touching the model's weights; a 66-page survey."
+      },
+      {
+        "id": "arxiv:2610.20584",
+        "title": "Player-1: Learning to Play from Synthetic Experience",
+        "text": "Post-training that teaches computer-use agents to play games through synthetic experience; it starts by fine-tuning on 6,044 gameplay recordings."
+      }
+    ]
+  }
+}

@@ -81,7 +81,11 @@ const LABELS = {
   nameplate: [], date: ["weekday", "day", "month", "year"], issue: ["issue"], print_time: ["time"], continued: ["title"],
   sources: [], takeaway: [], continues: ["next", "page", "pages"], last_page: ["page", "pages"],
   shows: [], does: [], says: [], symbols: [],
+  radar_running: [], radar_kicker: ["count"], radar_scanned: ["hf", "arxiv", "github", "blogs"], radar_standfirst: ["total"],
+  radar_how: [], radar_when: [], radar_also: [], radar_sources: [],
 };
+const RADAR_ID = /^(arxiv:\d{4}\.\d{4,5}|github:[\w.-]+\/[\w.-]+|blog:[a-z0-9-]+:[a-z0-9.-]+)$/;
+const RADAR_CARDS = 5;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- labels --------------------------------------------------------------------------------
@@ -225,15 +229,47 @@ function validate(issue, labels) {
   if (issue.note != null && !(typeof issue.note === "string" && /^notes\/[^\\]+\.md$/.test(issue.note) && !issue.note.split("/").includes("..")))
     errors.push("issue.note: the note it was written from, by its path in the repo (notes/002-raven.md)");
   if (!Number.isInteger(issue.issue) || issue.issue < 1) errors.push("issue: the issue number (1, 2, ...)");
-  for (const k of ["date", "edition", "short_title", "kicker", "byline", "headline", "standfirst", "takeaway"]) text(issue, k, "issue");
+  // A RADAR-only file is the RADAR page on its own (printed after an issue that was already queued):
+  // no front page, so none of the article's fields.
+  const radarOnly = issue.front == null && issue.radar != null;
+  for (const k of radarOnly ? ["date"] : ["date", "edition", "short_title", "kicker", "byline", "headline", "standfirst", "takeaway"]) text(issue, k, "issue");
   if (typeof issue.date === "string" && !/^\d{4}-\d{2}-\d{2}$/.test(issue.date)) errors.push("issue.date: YYYY-MM-DD");
   if (issue.print_time != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(issue.print_time)) errors.push("issue.print_time: HH:MM in printer.json's timezone, like 07:30");
   caps(issue.kicker, "issue.kicker");
   caps(issue.edition, "issue.edition");
-  if (!Array.isArray(issue.sources)) errors.push("issue.sources: list of {text, url}");
-  else issue.sources.forEach((s, i) => { text(s, "text", `sources[${i}]`); text(s, "url", `sources[${i}]`); });
-  if (!Array.isArray(issue.front) || !issue.front.length) errors.push("issue.front: at least one block");
-  else checkBlocks(issue.front, "front");
+  if (!radarOnly) {
+    if (!Array.isArray(issue.sources)) errors.push("issue.sources: list of {text, url}");
+    else issue.sources.forEach((s, i) => { text(s, "text", `sources[${i}]`); text(s, "url", `sources[${i}]`); });
+    if (!Array.isArray(issue.front) || !issue.front.length) errors.push("issue.front: at least one block");
+    else checkBlocks(issue.front, "front");
+  }
+  if (issue.radar != null) {
+    const r = issue.radar;
+    if (!r || typeof r !== "object") errors.push("radar: an object (see README.md, RADAR)");
+    else {
+      text(r, "headline", "radar");
+      if (typeof r.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) errors.push("radar.date: the night's index date, YYYY-MM-DD");
+      const n = r.scanned;
+      if (!n || !["hf", "arxiv", "github", "blogs"].every((k) => Number.isInteger(n[k]) && n[k] >= 0)) errors.push("radar.scanned: {hf, arxiv, github, blogs} from the index, as is");
+      if (!Array.isArray(r.items) || r.items.length !== RADAR_CARDS) errors.push(`radar.items: ${RADAR_CARDS} cards`);
+      (Array.isArray(r.items) ? r.items : []).forEach((c, i) => {
+        const at = `radar.items[${i}]`;
+        if (!c || typeof c !== "object") { errors.push(`${at}: a card`); return; }
+        if (typeof c.id !== "string" || !RADAR_ID.test(c.id)) errors.push(`${at}.id: the candidate's id from the index (arxiv:2610.12345, github:owner/repo, blog:lab:slug)`);
+        for (const k of ["area", "name", "what", "how", "when", "source"]) text(c, k, at);
+        caps(c.area, `${at}.area`);
+        text(c, "signal", at, true);
+        text(c, "code", at, true);
+        if (typeof c.code === "string" && /^https?:\/\//.test(c.code)) errors.push(`${at}.code: without https:// (github.com/owner/repo)`);
+        if (!c.number || typeof c.number !== "object") errors.push(`${at}.number: {value, says, quote}`);
+        else for (const k of ["value", "says", "quote"]) text(c.number, k, `${at}.number`);
+      });
+      if (r.also != null) {
+        if (!Array.isArray(r.also) || r.also.length > 6) errors.push("radar.also: up to 6 {id, title, text}");
+        else r.also.forEach((a, i) => { for (const k of ["id", "title", "text"]) text(a, k, `radar.also[${i}]`); });
+      }
+    }
+  }
   if (issue.results != null) {
     const r = issue.results;
     text(r, "headline", "results");
@@ -244,7 +280,10 @@ function validate(issue, labels) {
     if (r.blocks != null) checkBlocks(r.blocks, "results.blocks");
   }
   if (pictures > PICTURES_MAX) errors.push(`${pictures} pictures (slides and diagrams); an issue carries at most ${PICTURES_MAX}`);
-  walkStrings(issue, "", (s, path) => { for (const [re, what] of FORBIDDEN) if (re.test(s)) errors.push(`${path}: ${what}`); });
+  walkStrings(issue, "", (s, path) => {
+    if (/^radar\.(items\[\d+\]\.number\.quote|also\[\d+\]\.title)$/.test(path)) return;  // the source's own words, quoted
+    for (const [re, what] of FORBIDDEN) if (re.test(s)) errors.push(`${path}: ${what}`);
+  });
   for (const [part, blocks] of [["front", issue.front], ["results", issue.results && issue.results.blocks]]) {
     const n = words(blocks);
     if (n > PART_WORDS) warnings.push(`${part}: ${n} words against a budget of ${PART_WORDS}; expect an extra page`);
@@ -348,7 +387,36 @@ function textRuns(issue) {
     table(r.table, "results.table");
     blocks(r.blocks, "results.blocks");
   }
+  const radar = issue.radar;
+  if (radar && typeof radar === "object") {
+    add(radar.headline, "radar.headline");
+    (Array.isArray(radar.items) ? radar.items : []).forEach((c, i) => {
+      if (!c) return;
+      const at = `radar.items[${i}]`;
+      add(c.area, at + ".area", mono);
+      add(c.signal, at + ".signal", mono);
+      add(c.name, at + ".name");
+      add(c.what, at + ".what", italic);
+      add(c.how, at + ".how");
+      add(c.when, at + ".when");
+      add(c.number && c.number.value, at + ".number.value");
+      add(c.number && c.number.says, at + ".number.says");
+      add(c.code, at + ".code", mono);
+      add(c.source, at + ".source", mono);
+      // number.quote is the source's own sentence for the check; it is not printed
+    });
+    (Array.isArray(radar.also) ? radar.also : []).forEach((a, i) => {
+      if (!a) return;
+      add(typeof a.title === "string" ? radarShort(a.title) : a.title, `radar.also[${i}].title`);
+      add(a.text, `radar.also[${i}].text`);
+    });
+  }
   return out;
+}
+
+// The part of a candidate's title the RADAR list prints: its name before the colon, dashes as hyphens.
+function radarShort(title) {
+  return String(title).split(": ")[0].replace(/[\u2013\u2014]/g, "-");
 }
 
 // The labels with the face each one prints in (edition.css): the nameplate in the display
@@ -363,7 +431,10 @@ function labelRuns(labels) {
   (labels.months || []).forEach((m, i) => add(m, `months[${i}]`, { mono: true }));
   add(labels.nameplate, "nameplate (in the footer)", { mono: true });
   add(labels.continued, "continued", { italic: true });
-  for (const key of ["shows", "does", "says", "symbols"]) add(labels[key], key);
+  for (const key of ["shows", "does", "says", "symbols", "radar_how", "radar_when"]) add(labels[key], key);
+  for (const key of ["radar_kicker", "radar_scanned", "radar_also", "radar_sources"]) add(labels[key], key, { mono: true });
+  add(labels.radar_running, "radar_running", { italic: true });
+  add(labels.radar_standfirst, "radar_standfirst", { italic: true });
   return out;
 }
 
@@ -560,6 +631,7 @@ function summary(report) {
   if (report.layout && report.layout.pages && report.layout.pages.length) {
     const pages = report.layout.pages;
     lines.push(`  pages: ${pages.length} (${pages.map((p) => p.kind).join(", ")}), leading ${report.layout.leading}px, fill ${pages.map((p) => p.fill).join(" / ")}`);
+    if (report.layout.radar_free_px) lines.push(`  radar: free room per cell ${report.layout.radar_free_px.join(" / ")} px (one line is ${report.layout.leading} px)`);
   }
   if (report.pdf) lines.push(`  pdf: ${report.pdf.pages} page(s), text on every page matches the layout`);
   if (report.preflight) lines.push("  preflight: " + report.preflight);
@@ -711,7 +783,7 @@ async function fullBuild(args, report, issue, cmaps, labels, imgs, finish, hold)
   await chrome.evaluate("CoffeeEdition.clearStage()");
   report.pictures = { slides: imgs.found.length, diagrams: staged.diagrams.length };
 
-  report.layout = await chrome.evaluate(`CoffeeEdition.run(${JSON.stringify(issue)}, ${JSON.stringify(cmaps)})`);
+  report.layout = await chrome.evaluate(`CoffeeEdition.run(${JSON.stringify(issue)}, ${JSON.stringify(cmaps)}, ${JSON.stringify({ radarSpare: args.preflight })})`);
   report.errors.push(...report.layout.errors);
   report.warnings.push(...report.layout.warnings);
   if (report.errors.length && !(args.draft && report.layout.pages.length)) return finish(1);

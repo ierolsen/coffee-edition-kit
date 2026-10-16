@@ -23,7 +23,7 @@ What to write is in [STYLE.md](STYLE.md). This file is the format and the checks
 - The file: required fields, known block types, labels typed in capitals (in the labels' language, so Turkish `i` becomes `İ`), code lines of at most 30 characters, no em-dash or en-dash.
 - The labels file: every key, 7 weekdays (Sunday first), 12 months, every placeholder kept.
 - The fonts: all of them loaded, and every character present in one of the vendored fonts.
-- The layout: every line and box inside its own column, everything inside the page, at most 4 pages.
+- The layout: every line and box inside its own column, everything inside the page, at most 4 pages (the RADAR page comes on top). Every RADAR card inside its cell; with `--preflight`, a line free in every cell. A card that does not fit is named with the lines to cut.
 - The printed PDF itself: the same page count as the layout, and on every page the same number of characters as the layout (a clipped line would go missing here).
 
 A part over about 800 words gets a warning: it usually means an extra page. The picture checks are under the block table below.
@@ -103,6 +103,39 @@ The results table (`results.table`) is a `table` with extras:
 - `chart: {column, label, min, max, ticks}` draws that column's before and after as a dumbbell;
 - `delta: {column, label}`: after minus before;
 - `decimals` (default 1), and `tone: "muted"` on a column.
+
+### RADAR
+
+An optional page at the back of the issue: five new AI methods from the night before (what to write
+is in [STYLE.md](STYLE.md), section 11). It prints when `printer.json` has `"radar": true`. The
+`radar` part sits in the issue file; a file can also hold a RADAR page alone (no `front`, only
+`version`, `issue`, `date`, `print_time` and `radar`).
+
+```json
+"radar": {
+  "date": "2026-10-17",
+  "scanned": {"hf": 150, "arxiv": 403, "github": 8, "blogs": 10},
+  "headline": "100× faster video answers, an open agent that runs code, better reasoning without training",
+  "items": [
+    {"id": "arxiv:2610.18615", "area": "VIDEO", "signal": "HF 344 upvotes", "name": "VideoJev",
+     "what": "...", "how": "...", "when": "...",
+     "number": {"value": "100×+", "says": "...", "quote": "the source's sentence, word for word"},
+     "code": "github.com/MCG-NJU/VideoJev", "source": "Nanjing University MCG · arXiv 2610.18615"}
+  ],
+  "also": [{"id": "arxiv:2610.18773", "title": "Jeva: System One Models from First Principles", "text": "..."}]
+}
+```
+
+- `items` holds exactly 5 cards; each `id` is a candidate in that night's
+  `sources/radar/<date>/index.json` (`arxiv:<id>`, `github:<owner>/<repo>`, `blog:<lab>:<slug>`).
+  `area` is in capitals; `code` has no `https://`. `number.quote` does not print; `scripts/radar.py
+  check` reads it.
+- `also` holds up to 6 lines; `title` is the candidate's title as is, the page prints the part before
+  the colon.
+- The page lays out as two rows of three cells (five cards and the list) and never runs onto a second
+  page. It comes after the closing band and does not count against the four pages. Its head and footer
+  come from the `radar_*` labels in `labels.json`.
+- Sample: `fixtures/radar.edition.json`.
 
 ### Inline markup
 

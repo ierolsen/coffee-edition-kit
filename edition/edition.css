@@ -189,6 +189,37 @@ td.delta { font-weight: 600; color: var(--accent); }
 /* a picture keeps its caption in the same column */
 .unit.keep { break-inside: avoid; }
 
+/* RADAR: five new methods on a page after the issue, a grid of two rows of three: five cards
+   and the list of the others. A card fills its cell and never breaks; the number callout is
+   the one figure to remember, the code link and the source sit at the foot of the card. */
+.radar-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: 9px; border-bottom: 1px solid var(--ink); }
+.radar-head h2 { font-size: 24px; line-height: 28px; letter-spacing: -0.01em; text-wrap: balance; }
+.radar-head .standfirst { font-size: 13.5px; line-height: 18px; }
+.radar-grid { column-count: auto; column-rule: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr)); column-gap: 20px; row-gap: 12px; }
+.radar-grid > .flow-end { display: none; }
+.radar-grid > .unit { position: relative; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.radar-grid > .unit:nth-child(3n+2)::before, .radar-grid > .unit:nth-child(3n+3)::before {
+  content: ""; position: absolute; left: -10.5px; top: 0; bottom: 0; border-left: 1px solid var(--rule-light); }
+.radar-grid > .unit:nth-child(-n+3) { border-bottom: 1px solid var(--rule-light); padding-bottom: 8px; }
+.card-top { display: flex; align-items: baseline; gap: 7px; font-family: var(--mono); font-size: 12px; line-height: 16px; }
+.card-n { flex: 0 0 auto; min-width: 16px; text-align: center; font-weight: 500; color: var(--paper); background: var(--accent); }
+.card-area { font-weight: 500; letter-spacing: 0.1em; color: var(--accent); }
+.card-signal { margin-left: auto; color: var(--muted); white-space: nowrap; }
+.card-name { margin: 4px 0 2px; font-weight: 700; font-size: 17px; line-height: 20px; letter-spacing: -0.005em; color: var(--ink); overflow-wrap: anywhere; }
+.card-what { font-style: italic; color: var(--ink-2); }
+.card .p { margin-bottom: 4px; }
+.card-number { margin: 3px 0 6px; padding: 1px 0 2px 8px; border-left: 3px solid var(--accent); }
+.card-number .value { font-weight: 600; font-size: 20px; line-height: 23px; font-variant-numeric: lining-nums tabular-nums; color: var(--ink); }
+.card-number .says { color: var(--ink-2); }
+.card-meta { margin-top: auto; display: flex; flex-direction: column; gap: 1px; font-family: var(--mono); font-size: 12px; line-height: 15px; color: var(--muted); }
+.card-code { color: var(--ink-2); }
+.card-code { overflow-wrap: break-word; }
+.card-source { overflow-wrap: anywhere; }
+.also > .label { margin-top: 0; }
+.also-item { margin-bottom: 5px; }
+.also-item strong { color: var(--ink); }
+
 /* closing band and footer */
 .closing { display: flex; gap: 16px; align-items: baseline; border-top: 3px solid var(--ink); padding-top: 7px; }
 .closing .label { flex: 0 0 auto; margin: 0; font-size: 12px; line-height: 16px; }

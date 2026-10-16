@@ -162,6 +162,34 @@ const cases = [
     [r.code === 1 && !r.pdf, "exit code 1, no PDF"],
     [r.report.errors.filter((e) => /a picture next to a note/.test(e)).length === 2, "both pictures are named: " + r.report.errors.join("; ")],
   ]],
+  ["a RADAR page holds five cards and the list of the others on one page", "radar",
+    () => JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8")), [], (r) => [
+    [r.code === 0, "builds"],
+    [kinds(r) === "radar", "one RADAR page: " + kinds(r)],
+    [(r.report.layout.radar_free_px || []).length === 6 && r.report.layout.radar_free_px.every((px) => px >= 0), "six cells, each with room left: " + r.report.layout.radar_free_px],
+  ]],
+  ["the RADAR page follows the issue and does not count against its four pages", "radar-issue", () => {
+    const d = clone();
+    d.radar = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8")).radar;
+    return d;
+  }, [], (r) => [
+    [r.code === 0, "builds"],
+    [kinds(r) === "front,results,radar", "pages are front, results, radar: " + kinds(r)],
+  ]],
+  ["a RADAR card that outgrows its cell is refused, with the lines to cut", "radar-long", () => {
+    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
+    d.radar.items[1].how += " " + d.radar.items[1].how + " " + d.radar.items[1].how;
+    return d;
+  }, [], (r) => refused(r, /RADAR page does not fit: card 2 by \d+ lines?/)],
+  ["a RADAR page needs five cards with a sourced number each", "radar-short", () => {
+    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
+    d.radar.items.pop();
+    delete d.radar.items[0].number.quote;
+    return d;
+  }, [], (r) => [
+    ...refused(r, /radar\.items: 5 cards/),
+    [r.report.errors.some((e) => /radar\.items\[0\]\.number\.quote: required/.test(e)), "the missing quote is named"],
+  ]],
   ["a diagram too wide to read in a column is refused", "diagram-wide", () => {
     const d = clone();
     d.front.push({ type: "diagram", mermaid: "flowchart LR\n  A[\"The first long box\"] --> B[\"The second long box\"] --> C[\"The third long box\"] --> D[\"The fourth long box\"]" }, cap("far too wide."));

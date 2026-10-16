@@ -1,8 +1,29 @@
 {
   "lang": "en",
   "nameplate": "Coffee Edition",
-  "weekdays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
-  "months": ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"],
+  "weekdays": [
+    "SUNDAY",
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY"
+  ],
+  "months": [
+    "JANUARY",
+    "FEBRUARY",
+    "MARCH",
+    "APRIL",
+    "MAY",
+    "JUNE",
+    "JULY",
+    "AUGUST",
+    "SEPTEMBER",
+    "OCTOBER",
+    "NOVEMBER",
+    "DECEMBER"
+  ],
   "date": "{weekday}, {day} {month} {year}",
   "issue": "ISSUE {issue}",
   "print_time": "PRINTED {time}",
@@ -14,5 +35,13 @@
   "shows": "What it shows:",
   "does": "What it does:",
   "says": "In words:",
-  "symbols": "Symbols:"
+  "symbols": "Symbols:",
+  "radar_running": "RADAR",
+  "radar_kicker": "RADAR · {count} NEW METHODS",
+  "radar_scanned": "Scanned: {hf} HF · {arxiv} arXiv · {github} GitHub · {blogs} blogs",
+  "radar_standfirst": "Five of the {total} works scanned last night. Every number appears in its source word for word.",
+  "radar_how": "How it works.",
+  "radar_when": "When to use it.",
+  "radar_also": "ALSO WORTH A LOOK",
+  "radar_sources": "Sources: HF Papers · arXiv · GitHub trending · lab blogs"
 }
