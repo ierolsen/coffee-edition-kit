@@ -11,5 +11,6 @@
   "pwg_dpi": 300,
   "timezone": "UTC",
   "edition_print_time": "07:30",
-  "nightly": "off"
+  "nightly": "off",
+  "radar": false
 }

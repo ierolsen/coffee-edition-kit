@@ -135,6 +135,37 @@ def pick_for(ctx, day, skip=None):
     }
 
 
+def radar_pick(root, day, cfg):
+    """Tonight's RADAR material for the pick: the candidate index scripts/radar.py collect wrote
+    (radar.yml, before the routine). Without it, or with RADAR off, the issue has no RADAR page."""
+    if not cfg.get("radar"):
+        return {"ready": False, "why": 'RADAR is off in printer.json ("radar": false); write no radar part'}
+    rel = Path("sources") / "radar" / day.isoformat() / "index.json"
+    try:
+        index = json.loads((Path(root) / rel).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"ready": False, "why": "no candidate index at %s: radar.yml did not run for this date; write no radar part" % rel}
+    if not index.get("candidates"):
+        return {"ready": False, "why": "the candidate index at %s is empty; write no radar part" % rel}
+    return {"ready": True, "date": index["date"], "index": str(rel), "texts": str(rel.parent / "texts"),
+            "scanned": index["scanned"], "candidates": len(index["candidates"]),
+            "with_text": sum(1 for c in index["candidates"] if c.get("text")), "errors": index.get("errors") or []}
+
+
+def radar_problems(root, file, issue):
+    """The radar part against its night's candidates (scripts/radar.py check), and its date."""
+    radar = issue.get("radar")
+    if radar is None:
+        return []
+    import radar as radar_check  # here, not at the top: radar.py imports this module
+    if not isinstance(radar, dict):
+        return ["radar: an object (see edition/README.md, RADAR)"]
+    errors = []
+    if radar.get("date") != issue.get("date"):
+        errors.append("radar.date: must be the issue's date %r, not %r" % (issue.get("date"), radar.get("date")))
+    return errors + radar_check.check(issue, Path(root), name=Path(file).name)[0]
+
+
 def verify(ctx, file, now):
     """Reasons the written issue is not exactly the pick for its date, or not in time; [] if fine."""
     file = Path(file)
@@ -157,6 +188,7 @@ def verify(ctx, file, now):
         expected = want["note"]["path"] if key == "note" else want[key]
         if issue.get(key) != expected:
             errors.append("%s: must be %r, not %r" % (key, expected, issue.get(key)))
+    errors += radar_problems(ctx.root, file, issue)
     allowed = {p["src"] for p in want["note"]["images"]}
     for blocks in (issue.get("front") or [], (issue.get("results") or {}).get("blocks") or []):
         for b in blocks:
@@ -245,7 +277,10 @@ def main():
         return wait(a.file, a.timeout, a.poll)
     ctx = load_context()
     if a.cmd == "pick":
-        p = pick_for(ctx, issue_date(now, ctx.print_time, ctx.tz))
+        day = issue_date(now, ctx.print_time, ctx.tz)
+        p = pick_for(ctx, day)
+        if p.get("status") == "ready":
+            p["radar"] = radar_pick(ctx.root, day, ctx.cfg)
         print(json.dumps(p, ensure_ascii=False, indent=2))
         return 0
     if a.cmd == "verify":

@@ -66,6 +66,7 @@ DEFAULTS = {
     "nightly": "off",            # nightly issues: off | dry-run (built, never printed) | live
     "grayscale": False,
     "keep_days": 3,
+    "radar": False,              # the RADAR back page: five new AI methods every night (radar.yml)
 }
 PAGE_CSS = "<style>@page { size: A4; margin: 14mm; }</style>"
 EDITION_SUFFIX = ".edition.json"
@@ -144,6 +145,15 @@ def nightly_problem(events, fields, print_at, now, tz=None):
         if e.get("event") in ("queued", "drafted") and e.get("note") and e.get("date") == fields["date"]:
             return "this date already has an issue (%s)" % fields["date"]
     return None
+
+
+def radar_ids(issue):
+    """The works a RADAR page prints, for the log: its cards and its list. scripts/radar.py never
+    offers them again."""
+    radar = (issue or {}).get("radar") or {}
+    ids = lambda key: [c["id"] for c in radar.get(key) or [] if isinstance(c, dict) and isinstance(c.get("id"), str)]  # noqa: E731
+    out = {"radar": ids("items"), "radar_also": ids("also")}
+    return {k: v for k, v in out.items() if v}
 
 
 def first_error(report):
@@ -335,7 +345,7 @@ def main():
                 kept.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(pdf, kept)
             event = {"event": "drafted" if draft else "queued", "job": job_id, **seen,
-                     "title": title, "topic": topic, "pages": pages, **nightly}
+                     "title": title, "topic": topic, "pages": pages, **nightly, **radar_ids(issue)}
             if print_at:
                 event["print_at"] = print_at
             if not draft:
@@ -346,7 +356,7 @@ def main():
                     job["print_local"] = printlog.local(print_at, tz) + " " + getattr(tz, "key", "UTC")
                 index["jobs"].append(job)
             printlog.append(root, event)
-            if nightly:
+            if nightly or (issue and issue.get("radar") and not issue.get("front")):  # a RADAR page queued on its own too
                 keep_issue(root, src, issue)
             consume(src)
             if draft:

@@ -25,6 +25,7 @@ import next_issue as ni  # noqa: E402
 import notes  # noqa: E402
 import prepare  # noqa: E402
 import printlog  # noqa: E402
+import radar  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 FIXTURE_PICTURE = REPO / "edition" / "fixtures" / "assets" / "fixture-slide.png"
@@ -274,6 +275,122 @@ def check_repo_notes():
     print("notes/ ok: %d note(s) read%s" % (len(found), ", the Raven example carries its source and license" if raven else ""))
 
 
+def radar_root(tmp):
+    """A night's candidates by hand: five papers and a repository, each paper with a stored text."""
+    root = Path(tmp) / "radar"
+    night = root / "sources" / "radar" / "2026-10-18"
+    (night / "texts").mkdir(parents=True)
+    (root / "log").mkdir(parents=True)
+    (root / "inbox").mkdir()
+    (root / "log" / "prints.jsonl").write_text("")
+    cands = []
+    for i in range(1, 6):
+        cid = "arxiv:2610.1000%d" % i
+        text = ("Abstract\nMethod%d gates the update by agreement. It improves accuracy by %d.5 points "
+                "over the baseline on 1,324 problems, at 2.7x lower cost.\n" % (i, i))
+        (night / "texts" / radar.safe(cid)).write_text(text)
+        cands.append({"id": cid, "kind": "paper", "from": ["hf"], "title": "Method%d: A Study" % i, "url": "https://arxiv.org/abs/2610.1000%d" % i,
+                      "code": "https://github.com/lab/method%d" % i, "hf_upvotes": 100 + i, "abstract": "Method%d in short." % i,
+                      "text": "texts/" + radar.safe(cid), "authors": ["A. Author"], "authors_total": 3})
+    cands.append({"id": "github:lab/tool", "kind": "repo", "from": ["github"], "title": "lab/tool", "url": "https://github.com/lab/tool",
+                  "code": "https://github.com/lab/tool", "stars_today": 812, "abstract": "A tool that cuts tokens by 40x.", "text": None})
+    (night / "index.json").write_text(json.dumps({"version": 1, "date": "2026-10-18", "scanned": {"hf": 150, "arxiv": 400, "github": 8, "blogs": 9},
+                                                  "errors": [], "candidates": cands}))
+    card = lambda i: {"id": "arxiv:2610.1000%d" % i, "area": "TRAINING", "signal": "HF %d upvotes" % (100 + i), "name": "Method%d" % i,  # noqa: E731
+                      "what": "A method.", "how": "It gates the update by agreement.", "when": "With small models.",
+                      "number": {"value": "+%d.5 pts" % i, "says": "on 1,324 problems, at 2.7x lower cost",
+                                 "quote": "It improves accuracy by %d.5 points over the baseline on 1,324 problems" % i},
+                      "code": "github.com/lab/method%d" % i, "source": "Author et al. · arXiv 2610.1000%d" % i}
+    issue = {"version": 1, "issue": 2, "date": "2026-10-18", "print_time": "07:30",
+             "radar": {"date": "2026-10-18", "scanned": {"hf": 150, "arxiv": 400, "github": 8, "blogs": 9},
+                       "headline": "Five methods, 2.7x cheaper", "items": [card(i) for i in range(1, 6)],
+                       "also": [{"id": "github:lab/tool", "title": "lab/tool", "text": "A tool that cuts tokens by 40x."}]}}
+    return root, issue
+
+
+def check_radar(tmp):
+    """RADAR: every card is one of the night's candidates, never printed before, and every number
+    in it stands in the candidate's text; the sources' parsers read canned pages without a network."""
+    import copy
+    root, good = radar_root(tmp)
+    assert radar.check(good, root)[0] == [], radar.check(good, root)[0]
+
+    def errs(change):
+        issue = copy.deepcopy(good)
+        change(issue["radar"])
+        return radar.check(issue, root)[0]
+    cases = [
+        (lambda r: r["items"][0]["number"].__setitem__("value", "+9.5 pts"), "the number 9.5 is not in"),
+        (lambda r: r["items"][0].__setitem__("how", "It reaches 61.2 points."), "the number 61.2 is not in"),
+        (lambda r: r["items"][1]["number"].__setitem__("quote", "It improves everything"), "not found word for word"),
+        (lambda r: r["items"][2].__setitem__("id", "arxiv:2610.99999"), "is not one of this night's candidates"),
+        (lambda r: r["items"][3].__setitem__("code", "github.com/other/repo"), "is not the candidate's code link"),
+        (lambda r: r["items"][4].__setitem__("name", "Methodx"), "does not appear in the candidate's title"),
+        (lambda r: r.__setitem__("headline", "Five methods, 9x cheaper"), "radar.headline: the number 9"),
+        (lambda r: r["scanned"].__setitem__("hf", 151), "copy it from the index as is"),
+        (lambda r: r["also"][0].__setitem__("title", "Tool"), "copy the candidate's title as is"),
+        (lambda r: r["also"][0].__setitem__("text", "Cuts tokens by 50x."), "the number 50 is not in"),
+        (lambda r: r["items"].pop(), "4 cards, a RADAR page has 5"),
+    ]
+    for change, want in cases:
+        found = errs(change)
+        assert any(want in e for e in found), (want, found)
+    # printed works: a card or a list entry of any page prepare queued is never offered again
+    printlog.append(root, {"event": "queued", "job": "j", "at": "2026-10-17T02:00:00+00:00", "source": "x.edition.json",
+                           **prepare.radar_ids({"radar": {"items": [{"id": "arxiv:2610.10003"}], "also": [{"id": "github:lab/tool"}]}})})
+    found = radar.check(copy.deepcopy(good), root)[0]
+    assert any("arxiv:2610.10003 was printed before" in e for e in found), found
+    assert any("radar.also[0].id: github:lab/tool was printed before" in e for e in found), found
+    assert prepare.radar_ids({"front": []}) == {}, "an issue without RADAR adds nothing to its log line"
+    # the pick: off unless printer.json says "radar": true; then it names the night's index
+    assert ni.radar_pick(root, D(2026, 10, 18), {})["ready"] is False
+    on = {"radar": True}
+    assert ni.radar_pick(root, D(2026, 10, 18), on)["ready"] is True and ni.radar_pick(root, D(2026, 10, 18), on)["candidates"] == 6
+    assert ni.radar_pick(root, D(2026, 10, 19), on)["ready"] is False
+    wrong_day = copy.deepcopy(good)
+    wrong_day["radar"]["date"] = "2026-10-17"
+    assert any("radar.date: must be the issue's date" in e for e in ni.radar_problems(root, root / "inbox" / "x.edition.json", wrong_day))
+    # a night's candidates stay once its page is queued, and only then
+    assert radar.page_for(root, D(2026, 10, 18)) is None
+    (root / "issues" / "2026" / "10").mkdir(parents=True)
+    (root / "issues" / "2026" / "10" / "2026-10-18-note.edition.json").write_text(json.dumps(good))
+    assert radar.page_for(root, D(2026, 10, 18)) == "issues/2026/10/2026-10-18-note.edition.json"
+    # numbers: English thousands and decimal commas are the same number
+    assert "1324" in radar.numbers("on 1,324 problems") and "18.6" in radar.spellings("18,6") and "1324" in radar.spellings("1.324")
+    # the parsers, on canned pages
+    html = ('<html><nav>Menu 99</nav><article><h1>Title ' + 'word ' * 120 + '</h1><p>Speed is <math alttext="2.8\\times"><mi>x</mi></math> faster.</p>'
+            '<script>var x = 77;</script><table><tr><td>A</td><td>12.5</td></tr></table></article><footer>2026</footer></html>')
+    text = radar.page_text(html)
+    assert "Speed is" in text and "2.8\\times" in text and "12.5" in text and "Menu" not in text and "77" not in text, text
+    canned = {
+        "huggingface.co/api/daily_papers": json.dumps([{"paper": {"id": "2610.20001", "title": "X: Y", "upvotes": 50, "summary": "Real abstract 3.4.",
+                                                                  "ai_summary": "Never this.", "authors": [{"name": "A"}, {"name": "B"}], "githubRepo": "https://github.com/a/x"},
+                                                        "summary": "Real abstract 3.4."}]).encode(),
+        "rss.arxiv.org": ('<?xml version="1.0"?><rss xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel>'
+                          '<item><title>New One</title><link>https://arxiv.org/abs/2610.20002</link><description>arXiv:2610.20002v1 Announce Type: new  '
+                          'Abstract: Code at https://github.com/b/new. Gains 4.2.</description><category>cs.CL</category><arxiv:announce_type>new</arxiv:announce_type>'
+                          '<dc:creator>C, D</dc:creator><pubDate>Fri, 16 Oct 2026 00:00:00 -0400</pubDate></item>'
+                          '<item><title>Old</title><link>https://arxiv.org/abs/2610.20003</link><description>Abstract: replaced</description>'
+                          '<arxiv:announce_type>replace</arxiv:announce_type></item></channel></rss>').encode(),
+        "github.com/trending": ('<article class="Box-row"><h2><a href="/o/agent-kit">o / agent-kit</a></h2><p class="col-9 color-fg-muted">An LLM agent toolkit.</p>'
+                                '<span itemprop="programmingLanguage">Python</span><a href="/o/agent-kit/stargazers"><svg></svg> 1,234</a> 321 stars today</article>'
+                                '<article class="Box-row"><h2><a href="/o/game">o / game</a></h2><p class="col-9">A platform game.</p> 999 stars today</article>').encode(),
+    }
+    real_fetch = radar.fetch
+    radar.fetch = lambda url, **kw: next(v for k, v in canned.items() if k in url)
+    try:
+        hf = radar.hf_papers(D(2026, 10, 18))
+        new = radar.arxiv_new()
+        repos = radar.github_trending()
+    finally:
+        radar.fetch = real_fetch
+    assert len(hf) == 1 and hf[0]["abstract"] == "Real abstract 3.4." and "Never" not in json.dumps(hf), hf
+    assert [c["id"] for c in new] == ["arxiv:2610.20002"] and new[0]["code"] == "https://github.com/b/new", new
+    assert [c["id"] for c in repos] == ["github:o/agent-kit"] and repos[0]["stars"] == 1234 and repos[0]["stars_today"] == 321, repos
+    print("radar ok: off unless turned on; cards only from the night's candidates, never twice, every number and quote "
+          "in the source text, the headline and the list too; HF, arXiv and GitHub pages parse offline")
+
+
 def main():
     check_dates()
     check_frontmatter()
@@ -283,6 +400,7 @@ def main():
         check_pick(tmp)
         check_verify(tmp)
         check_log_table(tmp)
+        check_radar(tmp)
     check_prepare_guards()
     check_repo_notes()
     return 0

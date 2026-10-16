@@ -1,0 +1,63 @@
+name: radar
+
+# Collects the night's RADAR candidates before the nightly routine runs: Hugging Face Daily
+# Papers, arXiv's new submissions, GitHub trending and six lab blogs, each kept with its text
+# under sources/radar/<date>/. The routine's machine cannot reach arXiv and most of these
+# sites; it reads only what this run commits (scripts/radar.py, edition/STYLE.md "RADAR").
+# It does nothing until printer.json has "radar": true and "nightly" is not "off".
+#
+# The cron is in UTC. Keep it an hour or more before your routine runs (docs/routine.md).
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'issue date, YYYY-MM-DD (empty: the next print morning)'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: main-writer
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    # the public template has no queue of its own; only copies made from it collect
+    if: github.repository != 'ierolsen/coffee-edition-kit'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect the candidates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DAY: ${{ inputs.date }}
+        run: python3 scripts/radar.py collect ${DAY:+--date "$DAY"}
+
+      - name: Commit them to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          [ -d sources/radar ] || { echo "nothing collected"; exit 0; }
+          git add sources/radar
+          if git diff --cached --quiet; then
+            echo "nothing new to commit"
+            exit 0
+          fi
+          day=$(git diff --cached --name-only | sed -n 's#^sources/radar/\([0-9-]*\)/.*#\1#p' | sort -u | tail -1)
+          git commit -q -m "chore(radar): candidates for ${day}"
+          for attempt in 1 2 3; do
+            if git push -q origin HEAD:main; then
+              echo "pushed: $(git log -1 --format='%h %s')"
+              exit 0
+            fi
+            sleep $((attempt * 5))
+            git pull --rebase -q origin main
+          done
+          echo "push failed three times"
+          exit 1
