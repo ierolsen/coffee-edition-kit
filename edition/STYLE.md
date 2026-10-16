@@ -116,3 +116,50 @@ Read it once yourself before that:
 - Is every number in the note? Do the claims match the note's tables?
 - Does every table, picture and code block have its caption?
 - Is there at least one visual anchor (a diagram, table, steps or bars)?
+
+## 11. RADAR
+
+When `printer.json` has `"radar": true`, every issue carries one more page at the back: five new AI
+methods from the night before. It is for skimming. It never runs past one page, and it never takes
+the place of the issue.
+
+- **Material.** `radar.yml` collects the candidates into `sources/radar/<date>/` an hour or more
+  before you run: Hugging Face Daily Papers (the last three days, by upvotes), arXiv's new
+  submissions of the day (cs.CL, cs.LG, cs.AI; those that link their code), GitHub's trending AI
+  repositories and six lab blogs (OpenAI, Google DeepMind, Google Research, Hugging Face, Anthropic,
+  Meta AI). `index.json` lists each candidate with its id, title, authors, code link, signal (upvotes,
+  stars today) and `abstract`; when `text` is set, the full text is under `texts/`. If the pick says
+  `radar.ready: false`, write no RADAR and say why in the summary.
+- **Source discipline.** Read only `index.json` and `texts/`, never the web. Every number, name and
+  claim on a card stands in that candidate's abstract or text. Hugging Face's own summaries
+  (`ai_summary`) are never collected and never a source. A work that was on an earlier RADAR page,
+  as a card or in a list, never comes back: `collect` leaves it out.
+- **Choosing.** Look through all of `index.json` first, then pick five candidates that have a text: a
+  new method or algorithm (not only a benchmark, not company news), measured with a number, with code
+  where possible. Take the five from different areas (agents, training, reasoning, video, tools, for
+  example), and make at least one a tool or library the reader could use today. Upvotes and stars are
+  signals, not the decision.
+- **A card.** `id` the candidate's; `area` one word in capitals (`AGENTS`, `TRAINING`, `VIDEO`,
+  `REASONING`, `TOOL`); `signal` short ("HF 344 upvotes", "1647 stars today", "arXiv, 16 Oct");
+  `name` the method's own name; `what` one sentence, what it is; `how` two or three sentences, how it
+  works, the parts the method names in bold; `when` one sentence, when it helps or whom; `number` the
+  card's one big figure: `value` short ("+3.44 pts", "100×+", "2.7×"), `says` what it measures (which
+  model, which benchmark, against what), `quote` the source's sentence that carries it, **word for
+  word** (it does not print; the check reads it); `code` without `https://`
+  (`github.com/owner/repo`); `source` the lab or the first author with "et al." and the arXiv number
+  ("Yu et al. · arXiv 2610.20642"), or "owner · GitHub trending" for a repository.
+- **The list.** `also` holds 4 or 5 more works: `title` the candidate's title as is (the page prints
+  the part before the colon) and `text` one sentence.
+- **Headline.** `headline` ties three of the cards into one line; every number in it comes from the
+  cards' sources. Copy `scanned` from `index.json` as is; `date` is the issue's date.
+- **Length.** About 70 to 80 words a card across `what`, `how`, `when` and `says`. The build before
+  the push keeps a line free in every cell, because the Linux build that prints can break a line
+  differently. When a card does not fit, the error names it and the lines to cut.
+- **RADAR never costs an issue.** If the radar part fails its checks twice, delete it and send the
+  issue without it; say why in the summary.
+- **The check.** `next_issue.py verify` (run by `commit_issue.sh`) also runs `scripts/radar.py
+  check`: each id is one of the night's candidates and was never printed, every number on a card is
+  in its source, the quote stands there word for word and carries the callout number, the name and
+  the code link are the candidate's own, and the headline's and the list's numbers are in the sources
+  too. To run it by hand: `python3 scripts/radar.py check <file>`.
+- **Sample:** `edition/fixtures/radar.edition.json`.

@@ -10,6 +10,10 @@ You keep notes in a folder. Every night a Claude routine turns the next one into
 
 *The sample issue, written from the included note on the Raven paper (EverMind AI, arXiv 2609.33439, CC BY 4.0).*
 
+**RADAR, if you follow AI.** With `"radar": true` in `printer.json`, every issue gets one more page at the back: five new AI methods from the night before, picked from Hugging Face Daily Papers, arXiv's new submissions, GitHub trending and AI lab blogs. Each card says what the method is, how it works, when to use it, gives one number and links the code; every number is checked against its source before the push.
+
+<img src="docs/img/radar-page.png" alt="A RADAR page: five cards on new AI methods and a list of more" width="420">
+
 ## How it works
 
 ```mermaid
@@ -65,6 +69,7 @@ The writer does not browse the web. The issue is only as good as the note: put i
 - **To look back:** `log/prints.md` lists what was queued, printed, drafted, refused or skipped, and the `archive` branch keeps every PDF.
 - **To pause:** `"nightly": "off"` in `printer.json`, or switch the routine off.
 - **To change the voice:** edit [edition/STYLE.md](edition/STYLE.md); section 0 describes you, the reader.
+- **RADAR:** `"radar": true` in `printer.json` adds the back page of new AI methods. The `radar` workflow collects the candidates at 01:00 UTC; move its cron so it runs an hour or more before your routine ([docs/routine.md](docs/routine.md)).
 - **Another language:** translate [edition/labels.json](edition/labels.json) (the words printed around the article) and tell the writer in STYLE.md which language to write in. `edition/fixtures/labels-tr.json` is a Turkish example.
 
 ## What it costs
@@ -93,12 +98,13 @@ The writer does not browse the web. The issue is only as good as the note: put i
 ```
 notes/              your notes (one note, one issue)
 edition/            the newspaper: template, build, checks, labels, style guide, fixtures
-scripts/            pick, verify, commit, prepare, PWG raster, print log, tests
+scripts/            pick, verify, commit, prepare, PWG raster, print log, RADAR, tests
 pico/               the MicroPython firmware and its tests
 tools/              a fake printer and GitHub for the self-test, printer_info.py
 routine/            the routine's prompt
 docs/               the Pico, the routine, printers, architecture
-.github/workflows/  prepare (build the queue), print-log (the Pico's report), test
+sources/radar/      the night's RADAR candidates and their texts (written by the radar workflow)
+.github/workflows/  prepare (build the queue), print-log (the Pico's report), radar (RADAR candidates), test
 ```
 
 ## License

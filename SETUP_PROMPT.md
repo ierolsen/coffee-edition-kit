@@ -17,7 +17,7 @@ Steps:
 1. **About me.** Ask me, in one message: my country (for the Wi-Fi channels), my time zone, the time I want the paper printed, my printer's model, and whether I already have a Pico W or Pico 2 W.
 2. **Tools.** Check what is installed: Python 3.9+, Node 22+, Chrome or Chromium, poppler (`pdfinfo`, `pdftotext`, `pdftoppm`), git, and `mpremote`. Tell me how to install anything missing on my system, and wait.
 3. **Tests.** Run `node edition/test.mjs`, `python3 scripts/test_nightly.py` and the three `pico/test_*.py`. Then build the sample issue with `node edition/build.mjs edition/fixtures/raven.edition.json --pdf edition/out/raven.pdf --png edition/out` and show me the page images.
-4. **Settings.** Set `timezone` and `edition_print_time` in `printer.json` from my answers, and `"nightly": "dry-run"`. Show me the diff.
+4. **Settings.** Set `timezone` and `edition_print_time` in `printer.json` from my answers, and `"nightly": "dry-run"`. Ask me whether I want the RADAR page (five new AI methods at the back of every issue, for people who follow AI); if yes, set `"radar": true` and move the cron in `.github/workflows/radar.yml` to an hour or more before the routine's time, in UTC. Show me the diff.
 5. **Printer.** Help me find my printer's address (docs/printers.md), then run `python3 tools/printer_info.py <address>` and set `formats` and `pwg_dpi` in `printer.json`, and `PRINTER_MATCH`, `WIFI_COUNTRY` and `GITHUB_REPO` in `pico/config.py`. Show me the diff.
 6. **Commit.** Ask me, then commit these settings and push, so GitHub Actions can use them.
 7. **Token.** Walk me through making the fine-grained token on GitHub (docs/pico.md, "The GitHub token"): this repository only, Contents read-only, Actions read and write. I click through it myself.
