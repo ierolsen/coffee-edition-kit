@@ -501,7 +501,8 @@ async function launchChrome() {
     try { rmSync(profile, { recursive: true, force: true }); } catch { /* best effort */ }
   };
   let port = null;
-  for (let i = 0; i < 150 && !port; i++) {
+  // a fresh CI runner can take more than 15 s to start Chrome the first time
+  for (let i = 0; i < 300 && !port; i++) {
     await sleep(100);
     try { port = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0].trim() || null; } catch { /* not yet */ }
   }
