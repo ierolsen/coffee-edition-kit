@@ -2,6 +2,10 @@
 
 **A two-page newspaper, written overnight from your own notes, waiting on your printer in the morning.**
 
+![Printed Coffee Edition pages on a desk next to a cup of coffee: issue 001 and its RADAR page](docs/img/desk.jpg)
+
+*Issue 001 and its RADAR page, as the printer left them at 10:00 on 17 October 2026. Nobody pressed print. The story of how it was built: [erolsen.dev/writing/coffee-edition](https://erolsen.dev/writing/coffee-edition).*
+
 You keep notes in a folder. Every night a Claude routine turns the next one into an issue, GitHub Actions lays it out like a newspaper and checks every page, and a Raspberry Pi Pico W on your Wi-Fi prints it at the time you chose. Your computer can stay off.
 
 | Front page | Results page |
