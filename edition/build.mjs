@@ -81,11 +81,11 @@ const LABELS = {
   nameplate: [], date: ["weekday", "day", "month", "year"], issue: ["issue"], print_time: ["time"], continued: ["title"],
   sources: [], takeaway: [], continues: ["next", "page", "pages"], last_page: ["page", "pages"],
   shows: [], does: [], says: [], symbols: [],
-  radar_running: [], radar_kicker: ["count"], radar_scanned: ["hf", "arxiv", "github", "blogs"], radar_standfirst: ["total"],
+  radar_running: [], radar_kicker: ["count"], radar_scanned: ["papers", "models", "repos", "posts"], radar_standfirst: ["total", "count"],
   radar_how: [], radar_when: [], radar_also: [], radar_sources: [],
 };
-const RADAR_ID = /^(arxiv:\d{4}\.\d{4,5}|github:[\w.-]+\/[\w.-]+|blog:[a-z0-9-]+:[a-z0-9.-]+)$/;
-const RADAR_CARDS = 5;
+const RADAR_ID = /^(arxiv:\d{4}\.\d{4,5}|github:[\w.-]+\/[\w.-]+|model:[\w.-]+\/[\w.-]+|blog:[a-z0-9-]+:[a-z0-9.-]+|web:[a-z0-9.-]+:[a-z0-9.-]+)$/;
+const RADAR_MIN = 5, RADAR_MAX = 17;  // up to three pages of six cells, the list in the last one
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- labels --------------------------------------------------------------------------------
@@ -250,12 +250,14 @@ function validate(issue, labels) {
       text(r, "headline", "radar");
       if (typeof r.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) errors.push("radar.date: the night's index date, YYYY-MM-DD");
       const n = r.scanned;
-      if (!n || !["hf", "arxiv", "github", "blogs"].every((k) => Number.isInteger(n[k]) && n[k] >= 0)) errors.push("radar.scanned: {hf, arxiv, github, blogs} from the index, as is");
-      if (!Array.isArray(r.items) || r.items.length !== RADAR_CARDS) errors.push(`radar.items: ${RADAR_CARDS} cards`);
+      if (!n || !["hf", "arxiv", "github", "blogs"].every((k) => Number.isInteger(n[k]) && n[k] >= 0)
+          || !Object.values(n).every((x) => Number.isInteger(x) && x >= 0)) errors.push("radar.scanned: copy it from the index as is (hf, arxiv, github, blogs and the rest)");
+      if (!Array.isArray(r.items) || r.items.length < RADAR_MIN || r.items.length > RADAR_MAX)
+        errors.push(`radar.items: ${RADAR_MIN} to ${RADAR_MAX} cards (up to three pages of six cells, the list in the last one)`);
       (Array.isArray(r.items) ? r.items : []).forEach((c, i) => {
         const at = `radar.items[${i}]`;
         if (!c || typeof c !== "object") { errors.push(`${at}: a card`); return; }
-        if (typeof c.id !== "string" || !RADAR_ID.test(c.id)) errors.push(`${at}.id: the candidate's id from the index (arxiv:2610.12345, github:owner/repo, blog:lab:slug)`);
+        if (typeof c.id !== "string" || !RADAR_ID.test(c.id)) errors.push(`${at}.id: the candidate's id from the index (arxiv:2610.12345, github:owner/repo, model:owner/name, blog:lab:slug, web:host:slug)`);
         for (const k of ["area", "name", "what", "how", "when", "source"]) text(c, k, at);
         caps(c.area, `${at}.area`);
         text(c, "signal", at, true);

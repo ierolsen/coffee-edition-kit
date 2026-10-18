@@ -176,18 +176,34 @@ const cases = [
     [r.code === 0, "builds"],
     [kinds(r) === "front,results,radar", "pages are front, results, radar: " + kinds(r)],
   ]],
+  ["eleven RADAR cards take two pages, seventeen three, the second and third without the head", "radar-17", () => {
+    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
+    const five = d.radar.items;
+    d.radar.items = [...five, ...five, ...five, five[0], five[1]].map((c, i) => ({ ...c, id: "arxiv:2610." + String(i).padStart(5, "0") }));
+    return d;
+  }, [], (r) => [
+    [r.code === 0, "builds"],
+    [kinds(r) === "radar,radar,radar", "three RADAR pages: " + kinds(r)],
+    [(r.report.layout.radar_free_px || []).length === 18, "eighteen cells: " + (r.report.layout.radar_free_px || []).length],
+  ]],
+  ["eighteen RADAR cards are refused", "radar-18", () => {
+    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
+    const five = d.radar.items;
+    d.radar.items = [...five, ...five, ...five, five[0], five[1], five[2]];
+    return d;
+  }, [], (r) => refused(r, /radar\.items: 5 to 17 cards/)],
   ["a RADAR card that outgrows its cell is refused, with the lines to cut", "radar-long", () => {
     const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
     d.radar.items[1].how += " " + d.radar.items[1].how + " " + d.radar.items[1].how;
     return d;
-  }, [], (r) => refused(r, /RADAR page does not fit: card 2 by \d+ lines?/)],
+  }, [], (r) => refused(r, /RADAR pages do not fit: card 2 by \d+ lines?/)],
   ["a RADAR page needs five cards with a sourced number each", "radar-short", () => {
     const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
     d.radar.items.pop();
     delete d.radar.items[0].number.quote;
     return d;
   }, [], (r) => [
-    ...refused(r, /radar\.items: 5 cards/),
+    ...refused(r, /radar\.items: 5 to 17 cards/),
     [r.report.errors.some((e) => /radar\.items\[0\]\.number\.quote: required/.test(e)), "the missing quote is named"],
   ]],
   ["a diagram too wide to read in a column is refused", "diagram-wide", () => {

@@ -17,6 +17,8 @@
   const LEADINGS = [14.5, 14.25, 14]; // px at a fixed 12 px type size
   const SHORT_PAGE = 0.25;            // a last continuation page filled less than this is worth pulling back
   const MAX_PAGES = 4;
+  const RADAR_CELLS = 6;   // a RADAR page: two rows of three cells
+  const RADAR_PAGES = 3;
 
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const pad3 = (n) => String(n).padStart(3, "0");
@@ -226,12 +228,12 @@
   // The free height of each RADAR cell, in px: in a card, the gap above its code and source
   // lines (they sit at the foot of the cell); in the list, the space under the last item.
   // Negative when the content is taller than the cell.
-  function radarSlack(pg, cards) {
-    return [...pg.flow.querySelectorAll(":scope > .unit")].map((u, i) => {
+  function radarSlack(pg) {
+    return [...pg.flow.querySelectorAll(":scope > .unit")].map((u) => {
       const cell = u.getBoundingClientRect();
       const over = u.scrollHeight - u.clientHeight;
       if (over > 1) return -over;
-      if (i < cards) {
+      if (u.classList.contains("card")) {
         const meta = u.querySelector(".card-meta");
         const above = meta.previousElementSibling.getBoundingClientRect();
         return meta.getBoundingClientRect().top - above.bottom;
@@ -273,7 +275,7 @@
 
   // ---- page frames -------------------------------------------------------------------------
 
-  function frame(kind, issue) {
+  function frame(kind, issue, extra = {}) {
     const page = el("section", "page page-" + kind);
     if (kind === "front") {
       page.appendChild(el("header", "masthead",
@@ -284,17 +286,20 @@
         '<div class="kicker-row"><span class="kicker">' + inline(issue.kicker) + '</span><span class="byline">' + inline(issue.byline) +
         "</span></div><h1>" + inline(issue.headline) + '</h1><p class="standfirst">' + inline(issue.standfirst) + "</p>"));
     } else {
-      const title = kind === "radar" ? say("radar_running") : say("continued", { title: inline(issue.short_title) });
+      const title = kind === "radar" ? (extra.cont ? say("continued", { title: say("radar_running") }) : say("radar_running"))
+        : say("continued", { title: inline(issue.short_title) });
       page.appendChild(el("header", "running",
         '<div><span class="nameplate">' + say("nameplate") + '</span><span class="running-title">' + title + "</span></div>" +
         '<span class="running-meta">' + dateLine(issue.date) + " · " + say("issue", { issue: pad3(issue.issue) }) + "</span>"));
     }
-    if (kind === "radar") {
-      const r = issue.radar, n = r.scanned;
+    if (kind === "radar" && !extra.cont) {
+      // what was scanned, by kind: papers (HF daily and trending, arXiv), models, repositories, posts (labs, HN, newsletters)
+      const r = issue.radar, n = r.scanned, v = (k) => n[k] || 0;
+      const kinds = { papers: v("hf") + v("arxiv") + v("trending"), models: v("models"), repos: v("github"), posts: v("blogs") + v("hn") + v("letters") };
       page.appendChild(el("section", "radar-head",
         '<div class="kicker-row"><span class="kicker">' + say("radar_kicker", { count: r.items.length }) + '</span><span class="byline">' +
-        say("radar_scanned", { hf: n.hf, arxiv: n.arxiv, github: n.github, blogs: n.blogs }) + "</span></div>" +
-        "<h2>" + inline(r.headline) + '</h2><p class="standfirst">' + say("radar_standfirst", { total: n.hf + n.arxiv + n.github + n.blogs }) + "</p>"));
+        say("radar_scanned", kinds) + "</span></div>" +
+        "<h2>" + inline(r.headline) + '</h2><p class="standfirst">' + say("radar_standfirst", { total: Object.values(kinds).reduce((a, b) => a + b, 0), count: r.items.length }) + "</p>"));
     }
     if (kind === "results") {
       const r = issue.results;
@@ -351,7 +356,7 @@
     root.innerHTML = "";
     root.style.setProperty("--lh", lh + "px");
     const pages = [];
-    const add = (kind, part) => { const pg = frame(kind, issue); pg.part = part; root.appendChild(pg.el); pages.push(pg); return pg; };
+    const add = (kind, part, extra) => { const pg = frame(kind, issue, extra); pg.part = part; root.appendChild(pg.el); pages.push(pg); return pg; };
     const tooBig = (u) => ({ error: "a block does not fit on an empty page: " + u.textContent.trim().slice(0, 60) });
     const parts = [];
     if (issue.front && issue.front.length) parts.push({ kind: "front", blocks: issue.front });  // a RADAR-only file has no front
@@ -387,20 +392,26 @@
       }
     }
 
-    // RADAR is one page after the issue (and its closing band): it never runs on to a second one.
-    // What does not fit stays on the page, past its edge, so a draft shows how much is too much.
+    // RADAR comes after the issue (and its closing band): six cells a page, two rows of three, as
+    // many pages as the cards need (five to seventeen cards and the list: one to three pages). A cell
+    // never breaks; what does not fit stays in its cell, past its edge, so a draft shows how much.
     // `spare` is the room each cell must keep free, in px: a line before the push, where the
     // writer's machine may break a line differently from the Linux build that prints; none in that build.
     let radarError = null;
     if (issue.radar) {
-      const pg = add("radar", "radar");
-      radarUnits(issue.radar).forEach((u) => pg.flow.insertBefore(u, pg.end));
+      const cells = radarUnits(issue.radar), rpages = [];
+      for (let i = 0; i < cells.length; i += RADAR_CELLS) {
+        const pg = add("radar", "radar", { cont: i > 0 });
+        cells.slice(i, i + RADAR_CELLS).forEach((u) => pg.flow.insertBefore(u, pg.end));
+        rpages.push(pg);
+      }
       const need = spare ? lh : 0;
-      const short = radarSlack(pg, issue.radar.items.length).map((free, i) => {
+      const short = rpages.flatMap((pg) => radarSlack(pg)).map((free, i) => {
         const lines = Math.max(1, Math.ceil((need - free) / lh));
         return free < need - 0.5 || free < -0.5 ? (i < issue.radar.items.length ? "card " + (i + 1) : "the list") + " by " + lines + " line" + (lines > 1 ? "s" : "") : null;
       }).filter(Boolean);
-      if (short.length || overflows(pg)) radarError = "the RADAR page does not fit: " + (short.join(", ") || "too many cells") +
+      if (rpages.length > RADAR_PAGES) radarError = "RADAR runs to " + rpages.length + " pages; at most " + RADAR_PAGES;
+      else if (short.length || rpages.some(overflows)) radarError = "the RADAR pages do not fit: " + (short.join(", ") || "too many cells") +
         (spare ? " (shorten the text; before the push every cell keeps one line free)" : " (shorten the text)");
     }
 
@@ -500,15 +511,15 @@
     const errors = [], warnings = [];
     if (radarError) errors.push(radarError);
     if (best.short) warnings.push("the last page of a section is less than a quarter full; shortening the text a little would save a page");
-    const main = pages.filter((pg) => pg.kind !== "radar").length;  // the RADAR page comes on top of the limit
+    const main = pages.filter((pg) => pg.kind !== "radar").length;  // the RADAR pages come on top of the limit
     if (main > MAX_PAGES) errors.push(main + " pages; more than " + MAX_PAGES + " means the issue is far too long");
     errors.push(...checkBounds(pages));
     if (cmaps) errors.push(...checkGlyphs(pages.map((pg) => pg.el), cmaps));
-    const radarPage = pages.find((pg) => pg.kind === "radar");
+    const radarPages = pages.filter((pg) => pg.kind === "radar");
     return {
       ok: errors.length === 0,
       leading: lh,
-      radar_free_px: radarPage ? radarSlack(radarPage, issue.radar.items.length).map((x) => Math.round(x)) : undefined,
+      radar_free_px: radarPages.length ? radarPages.flatMap((pg) => radarSlack(pg)).map((x) => Math.round(x)) : undefined,
       tries,
       errors,
       warnings,
