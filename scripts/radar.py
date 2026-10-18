@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RADAR: a back page of five new AI methods for every issue, from sites the cloud routine cannot reach.
+"""RADAR: a back page of new AI methods for every issue, from sites the cloud routine cannot reach.
 
     python3 scripts/radar.py collect [--date YYYY-MM-DD]   # GitHub Actions (radar.yml), before the routine
     python3 scripts/radar.py check <issue.edition.json>    # the radar part's facts against that night's index
@@ -38,7 +38,7 @@ import prepare  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 RADAR = Path("sources") / "radar"
 UA = "coffee-edition-radar/1.0"   # no address or name: these requests go to outside services
-CARDS = 5
+CARDS_MIN, CARDS_MAX = 5, 17   # one to three RADAR pages
 
 HF_DAYS = 3          # Daily Papers lists read back from the day before the issue (weekends are thin)
 HF_KEEP = 30         # by upvotes
@@ -46,9 +46,17 @@ ARXIV_CATS = ("cs.CL", "cs.LG", "cs.AI")
 ARXIV_KEEP = 20      # new submissions that link their code, not already on Hugging Face
 GITHUB_KEEP = 8
 BLOG_DAYS = 4
-BLOG_KEEP = 10
-FULL_HF, FULL_ARXIV = 12, 6   # full texts: the candidates a card is most likely to come from
-TEXT_MAX, README_MAX, POST_MAX = 25000, 10000, 8000
+BLOG_KEEP = 16
+LAB_CAP = 2          # posts per lab and night, so a busy blog does not crowd the others out
+TRENDING_KEEP, TRENDING_DAYS = 15, 30   # HF Trending Papers: papers with code, by GitHub stars, not older than this
+MODELS_KEEP, MODELS_DAYS = 8, 45        # HF trending models, created within this many days, with their model card
+HN_HOURS, HN_POINTS, HN_KEEP = 48, 80, 8  # Hacker News stories about AI: the last two days, at least this many points
+LETTER_DAYS, LETTER_KEEP, LETTER_PER = 7, 10, 3   # newsletters: links to papers and repositories in their last week, a few per letter
+HF_MODEL = re.compile(r"https?://huggingface\.co/(?!papers/|datasets/|spaces/|blog/|docs/|collections/|learn/|models\b)([\w.-]+/[\w.-]+)/?(?:$|[?#])")
+# model uploads that are not a new model: re-quantizations, merges, and ones made to remove safety
+MODEL_SKIP = re.compile(r"(gguf|awq|gptq|exl2|mlx|uncensor|abliterat|nsfw|lewd|porn|erotic|humaniz)", re.I)
+FULL_HF, FULL_ARXIV, FULL_TRENDING, FULL_NOMINATED = 12, 6, 6, 6   # full texts: the candidates a card is most likely to come from
+TEXT_MAX, README_MAX, POST_MAX = 20000, 8000, 8000
 
 BLOGS = (
     ("openai", "OpenAI", "rss", "https://openai.com/news/rss.xml"),
@@ -57,7 +65,25 @@ BLOGS = (
     ("huggingface", "Hugging Face", "rss", "https://huggingface.co/blog/feed.xml"),
     ("anthropic", "Anthropic", "html", "https://www.anthropic.com/news"),
     ("meta", "Meta AI", "html", "https://ai.meta.com/blog/"),
+    ("microsoft", "Microsoft Research", "rss", "https://www.microsoft.com/en-us/research/feed/"),
+    ("apple", "Apple Machine Learning Research", "rss", "https://machinelearning.apple.com/rss.xml"),
+    ("nvidia", "NVIDIA", "rss", "https://developer.nvidia.com/blog/feed"),
+    ("ai2", "Ai2", "rss", "https://allenai.org/rss.xml"),
+    ("mistral", "Mistral AI", "rss", "https://mistral.ai/rss.xml"),
 )
+# Newsletters only nominate: the papers and repositories their posts link to become candidates,
+# with the newsletter as a signal; the card's facts still come from the paper or the README.
+LETTERS = (
+    ("interconnects", "Interconnects", "https://www.interconnects.ai/feed"),
+    ("importai", "Import AI", "https://jack-clark.net/feed/"),   # the same issues; Substack refuses GitHub's machines
+    ("simonwillison", "Simon Willison", "https://simonwillison.net/atom/everything/"),
+    ("latentspace", "Latent Space", "https://www.latent.space/feed"),
+)
+AI_TITLE = re.compile(r"\b(AI|LLMs?|GPT[-\w]*|Claude|Gemini|Llama|Qwen|DeepSeek|Mistral|OpenAI|Anthropic|agents?|agentic|"
+                      r"transformers?|diffusion|inference|fine-?tun\w*|RAG|embeddings?|neural|machine learning|reinforcement|"
+                      r"model weights|open[- ]weights?|tokens?|MCP|vLLM|llama\.cpp|Hugging ?Face)\b", re.I)
+LINK = re.compile(r"https?://(?:www\.)?(?:arxiv\.org/(?:abs|pdf|html)/(\d{4}\.\d{4,5})|huggingface\.co/papers/(\d{4}\.\d{4,5})|"
+                  r"github\.com/([\w.-]+/[\w.-]+))")
 OPENAI_KINDS = {"Research", "Engineering", "Product", "Safety", "Security", "API"}
 AI_REPO = re.compile(r"\b(llms?|agents?|agentic|ai|gpt|claude|gemini|model|models|rag|diffusion|transformers?|inference|"
                      r"embeddings?|prompts?|fine-?tun\w*|reasoning|neural|deep learning|machine learning|vision|speech|"
@@ -321,10 +347,16 @@ def blog_posts(day):
                                   html.unescape(re.sub(r"<[^>]+>", " ", it.findtext("description") or "")).strip()))
             else:
                 posts = [(u, d, None, "") for u, d in listing_posts(key, url, raw)]
+            taken = 0
             for link, date, title, desc in posts:
                 when = parse_day(date)
                 if not link or not when or not (since <= when < day):
                     continue
+                if key == "nvidia" and not AI_TITLE.search(title or ""):
+                    continue
+                if taken >= LAB_CAP:
+                    break
+                taken += 1
                 text = None
                 try:
                     body = fetch(link, tries=1 if blocked.get(lab) else 2)
@@ -345,6 +377,237 @@ def blog_posts(day):
         errors.append("%s: %d post page(s) not readable (%s), kept with the feed's summary" % (lab, n, last_block[lab]))
     out.sort(key=lambda c: c["published"], reverse=True)
     return out[:BLOG_KEEP], errors
+
+
+def hf_trending(day):
+    """Hugging Face Trending Papers: papers with code, by GitHub stars, published in the last TRENDING_DAYS."""
+    page = fetch("https://huggingface.co/papers/trending").decode("utf-8", "replace")
+    props = None
+    for raw in re.findall(r'data-props="([^"]+)"', page):
+        try:
+            d = json.loads(html.unescape(raw))
+        except ValueError:
+            continue
+        if isinstance(d, dict) and d.get("dailyPapers"):
+            props = d
+            break
+    if not props:
+        raise RuntimeError("the trending page has no paper list")
+    since = (day - datetime.timedelta(days=TRENDING_DAYS)).isoformat()
+    out = []
+    for x in props["dailyPapers"]:
+        p = x.get("paper") or x
+        pid = p.get("id")
+        if not pid or (p.get("publishedAt") or "")[:10] < since:
+            continue
+        org = (p.get("organization") or x.get("organization") or {}).get("fullname")
+        out.append({
+            "id": "arxiv:" + pid, "kind": "paper", "from": ["hf-trending"], "title": " ".join((p.get("title") or "").split()),
+            **authors_of([a.get("name") for a in p.get("authors") or []]), "org": org,
+            "url": "https://arxiv.org/abs/" + pid, "code": p.get("githubRepo") or None,
+            "hf_upvotes": p.get("upvotes", 0), "github_stars": p.get("githubStars"),
+            "published": (p.get("publishedAt") or "")[:10],
+            "abstract": " ".join((p.get("summary") or "").split()),
+        })
+    out.sort(key=lambda c: -(c["github_stars"] or 0))
+    return out
+
+
+def model_card(text):
+    """A model card's body without its YAML header, and its first paragraph of prose."""
+    body = re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.S)
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+    first = next((para.strip() for para in re.split(r"\n\s*\n", body)
+                  if para.strip() and not para.lstrip().startswith(("#", "<", "!", "|", "```", "[!", "-"))), "")
+    return body.strip(), " ".join(first.split())[:700]
+
+
+def hf_models(day):
+    """Hugging Face's trending models created in the last MODELS_DAYS, each with its model card."""
+    since = (day - datetime.timedelta(days=MODELS_DAYS)).isoformat()
+    out = []
+    for m in json.loads(fetch("https://huggingface.co/api/models?sort=trendingScore&limit=40")):
+        mid = m.get("id") or m.get("modelId")
+        if not mid or m.get("private") or (m.get("createdAt") or "")[:10] < since or MODEL_SKIP.search(mid):
+            continue
+        try:
+            body, first = model_card(fetch("https://huggingface.co/%s/raw/main/README.md" % mid, tries=2).decode("utf-8", "replace"))
+        except RuntimeError:
+            continue   # gated or without a card: nothing to check a card against
+        if len(body) < 400:
+            continue
+        out.append({
+            "id": "model:" + mid, "kind": "model", "from": ["hf-models"], "title": mid,
+            "url": "https://huggingface.co/" + mid, "code": "https://huggingface.co/" + mid,
+            "likes": m.get("likes"), "downloads": m.get("downloads"), "task": m.get("pipeline_tag"),
+            "published": (m.get("createdAt") or "")[:10], "abstract": first or body[:700], "_text": body[:README_MAX],
+        })
+        if len(out) >= MODELS_KEEP:
+            break
+    return out
+
+
+def hn_stories(now=None):
+    """Hacker News stories about AI of the last HN_HOURS with at least HN_POINTS points, best first."""
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    since = int((now - datetime.timedelta(hours=HN_HOURS)).timestamp())
+    url = ("https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=200"
+           "&numericFilters=created_at_i>%d,points>=%d" % (since, HN_POINTS))
+    hits = json.loads(fetch(url)).get("hits") or []
+    out = [h for h in hits if AI_TITLE.search(h.get("title") or "") and h.get("url")]
+    out.sort(key=lambda h: -(h.get("points") or 0))
+    return hits, out[:HN_KEEP]
+
+
+def letter_links(day):
+    """(source, name, kind, ref) for every paper and repository the newsletters linked in their last week."""
+    since = day - datetime.timedelta(days=LETTER_DAYS)
+    found, items, errors = [], 0, []
+    atom = "{http://www.w3.org/2005/Atom}"
+    for key, name, url in LETTERS:
+        try:
+            root = ET.fromstring(fetch(url))
+        except (RuntimeError, ET.ParseError) as e:
+            errors.append("%s: %s" % (name, e))
+            continue
+        entries = list(root.iter("item")) or list(root.iter(atom + "entry"))
+        for it in entries:
+            when = parse_day(it.findtext("pubDate") or "") or (
+                datetime.date.fromisoformat((it.findtext(atom + "updated") or it.findtext(atom + "published") or "")[:10])
+                if (it.findtext(atom + "updated") or it.findtext(atom + "published")) else None)
+            if not when or not (since <= when < day):
+                continue
+            items += 1
+            body = html.unescape(" ".join(filter(None, [
+                it.findtext("{http://purl.org/rss/1.0/modules/content/}encoded"), it.findtext("description"),
+                it.findtext(atom + "content"), it.findtext(atom + "summary")])))
+            for a, hfp, repo in LINK.findall(body):
+                if a or hfp:
+                    found.append((key, name, "paper", a or hfp))
+                elif repo and not repo.split("/")[0].lower() in ("orgs", "sponsors", "topics", "features", "about", "login"):
+                    found.append((key, name, "repo", re.sub(r"\.git$", "", repo.rstrip(".,)"))))
+    # a few links per letter, papers before repositories, so one busy blog does not fill the list
+    kept, per = [], {}
+    for entry in sorted(dict.fromkeys(found), key=lambda f: f[2] != "paper"):
+        if per.get(entry[0], 0) < LETTER_PER:
+            per[entry[0]] = per.get(entry[0], 0) + 1
+            kept.append(entry)
+    return kept, items, errors
+
+
+def arxiv_meta(ids):
+    """Title, abstract, authors and date of arXiv papers, from the arXiv API in one request."""
+    if not ids:
+        return {}
+    root = ET.fromstring(fetch("http://export.arxiv.org/api/query?max_results=%d&id_list=%s" % (len(ids), ",".join(ids))))
+    a = "{http://www.w3.org/2005/Atom}"
+    out = {}
+    for e in root.iter(a + "entry"):
+        m = re.search(r"abs/(\d{4}\.\d{4,5})", e.findtext(a + "id") or "")
+        if m:
+            out[m.group(1)] = {"title": " ".join((e.findtext(a + "title") or "").split()),
+                               "abstract": " ".join((e.findtext(a + "summary") or "").split()),
+                               "authors": [x.findtext(a + "name") for x in e.findall(a + "author")],
+                               "published": (e.findtext(a + "published") or "")[:10]}
+    return out
+
+
+def model_candidate(mid, sig):
+    """A model named by a signal source, with its model card; None when it has no readable card."""
+    if MODEL_SKIP.search(mid):
+        return None
+    try:
+        m = json.loads(fetch("https://huggingface.co/api/models/" + mid, tries=2))
+        body, first = model_card(fetch("https://huggingface.co/%s/raw/main/README.md" % mid, tries=2).decode("utf-8", "replace"))
+    except (RuntimeError, ValueError):
+        return None
+    if len(body) < 400:
+        return None
+    return dict({"id": "model:" + mid, "kind": "model", "title": mid, "url": "https://huggingface.co/" + mid,
+                 "code": "https://huggingface.co/" + mid, "likes": m.get("likes"), "downloads": m.get("downloads"),
+                 "task": m.get("pipeline_tag"), "published": (m.get("createdAt") or "")[:10],
+                 "abstract": first or body[:700], "_text": body[:README_MAX]}, **sig)
+
+
+def nominated(stories, links, have, token=None):
+    """Candidates the signal sources point at (Hacker News, newsletters) that the others did not bring;
+    a candidate that is already there only gains the signal."""
+    papers, repos, webs, models = {}, {}, {}, {}
+    def note(entry, signal):
+        for k, v in signal.items():
+            if isinstance(v, list):
+                entry.setdefault(k, [])
+                entry[k] += [x for x in v if x not in entry[k]]
+            elif v is not None:
+                entry[k] = max(entry.get(k) or 0, v) if isinstance(v, int) else v
+    for h in stories:
+        url = h["url"]
+        sig = {"hn_points": h.get("points"), "hn_comments": h.get("num_comments"),
+               "hn_url": "https://news.ycombinator.com/item?id=%s" % h.get("objectID")}
+        m, hfm = LINK.match(url), HF_MODEL.match(url)
+        if m and (m.group(1) or m.group(2)):
+            note(papers.setdefault(m.group(1) or m.group(2), {"from": ["hn"]}), sig)
+        elif m and m.group(3):
+            note(repos.setdefault(m.group(3), {"from": ["hn"]}), sig)
+        elif hfm:   # a model page on Hugging Face: the model itself is the candidate
+            note(models.setdefault(hfm.group(1), {"from": ["hn"]}), sig)
+        else:
+            webs[url] = dict(sig, title=h.get("title"))
+    for key, name, kind, ref in links:
+        target = papers if kind == "paper" else repos
+        entry = target.setdefault(ref, {"from": []})
+        if key not in entry["from"]:
+            entry["from"].append(key)
+        note(entry, {"mentioned_in": [name]})
+    out = []
+    for ref, sig in papers.items():
+        cid = "arxiv:" + ref
+        if cid in have:
+            have[cid]["from"] += [f for f in sig["from"] if f not in have[cid]["from"]]
+            note(have[cid], {k: v for k, v in sig.items() if k != "from"})
+            continue
+        out.append(dict({"id": cid, "kind": "paper", "url": "https://arxiv.org/abs/" + ref, "code": None}, **sig))
+    meta = arxiv_meta([c["id"].split(":", 1)[1] for c in out])
+    for c in out:
+        m = meta.get(c["id"].split(":", 1)[1]) or {}
+        c.update(title=m.get("title") or c["id"], abstract=m.get("abstract") or "", published=m.get("published"),
+                 **authors_of(m.get("authors") or []))
+        code = re.search(r"https?://github\.com/[\w.-]+/[\w.-]+", c["abstract"])
+        c["code"] = code.group(0).rstrip(".") if code else None
+    out = [c for c in out if c["abstract"]]
+    for ref, sig in repos.items():
+        cid = "github:" + ref
+        if cid in have:
+            have[cid]["from"] += [f for f in sig["from"] if f not in have[cid]["from"]]
+            note(have[cid], {k: v for k, v in sig.items() if k != "from"})
+            continue
+        text = readme(ref, token)
+        if not text or not AI_TITLE.search(text[:2000]):
+            continue   # no README, or a repository that is not about AI (a template, a general library)
+        out.append(dict({"id": cid, "kind": "repo", "title": ref, "url": "https://github.com/" + ref,
+                         "code": "https://github.com/" + ref, "abstract": model_card(text)[1] or text[:600], "_text": text}, **sig))
+    for mid, sig in models.items():
+        cid = "model:" + mid
+        if cid in have:
+            have[cid]["from"] += [f for f in sig["from"] if f not in have[cid]["from"]]
+            note(have[cid], {k: v for k, v in sig.items() if k != "from"})
+            continue
+        c = model_candidate(mid, sig)
+        if c:
+            out.append(c)
+    for url, sig in webs.items():
+        host = re.sub(r"^www\.", "", url.split("/")[2].lower())
+        slug = re.sub(r"[^a-z0-9.-]+", "-", "/".join(url.split("/")[3:]).lower()).strip("-")[:60] or "home"
+        try:
+            text = page_text(fetch(url, tries=2))[:POST_MAX]
+        except RuntimeError:
+            continue
+        out.append(dict({"id": "web:%s:%s" % (host, slug), "kind": "post", "from": ["hn"], "url": url, "code": None,
+                         "abstract": text[:600], "_text": text}, **sig))
+    from_hn = sorted((c for c in out if "hn" in c["from"]), key=lambda c: -(c.get("hn_points") or 0))[:HN_KEEP]
+    from_letters = [c for c in out if "hn" not in c["from"]]
+    from_letters.sort(key=lambda c: c["kind"] != "paper")
+    return from_hn + from_letters[:LETTER_KEEP]
 
 
 # ---- what was printed before ---------------------------------------------------------------
@@ -405,8 +668,8 @@ def collect(day, root=ROOT, token=None, log=print):
         t = time.time()
         try:
             got = fn(*args)
-        except (RuntimeError, ET.ParseError, ValueError) as e:
-            errors.append("%s: %s" % (name, e))
+        except Exception as e:  # one source down never stops the night
+            errors.append("%s: %s" % (name, str(e)[:200]))
             got = []
         log("%-8s %4d in %.1fs" % (name, len(got[0]) if isinstance(got, tuple) else len(got), time.time() - t))
         return got
@@ -416,7 +679,13 @@ def collect(day, root=ROOT, token=None, log=print):
     github = source("github", github_trending)
     posts, post_errors = source("blogs", blog_posts, day) or ([], [])
     errors += post_errors
-    scanned = {"hf": len(hf), "arxiv": len(arxiv), "github": len(github), "blogs": len(posts)}
+    trending = source("trending", hf_trending, day)
+    models = source("models", hf_models, day)
+    hn_all, hn = source("hn", hn_stories) or ([], [])
+    links, letter_items, letter_errors = source("letters", letter_links, day) or ([], 0, [])
+    errors += letter_errors
+    scanned = {"hf": len(hf), "arxiv": len(arxiv), "github": len(github), "blogs": len(posts),
+               "trending": len(trending), "models": len(models), "hn": len(hn_all), "letters": letter_items}
 
     on_hf = {c["id"]: c for c in hf}
     for c in arxiv:   # a new submission that is also on HF: one candidate, seen by both
@@ -426,16 +695,32 @@ def collect(day, root=ROOT, token=None, log=print):
     groups["arxiv"] = [c for c in arxiv if c["id"] not in on_hf and c["id"] not in done and c["code"]][:ARXIV_KEEP]
     groups["github"] = [c for c in github if c["id"] not in done]
     groups["blogs"] = [c for c in posts if c["id"] not in done]
+    for c in trending:  # a trending paper that is also a daily one: one candidate, seen by both
+        if c["id"] in on_hf:
+            on_hf[c["id"]]["from"].append("hf-trending")
+            on_hf[c["id"]]["github_stars"] = c["github_stars"]
+    seen_ids = set(on_hf) | {c["id"] for c in arxiv}
+    groups["trending"] = [c for c in trending if c["id"] not in seen_ids and c["id"] not in done][:TRENDING_KEEP]
+    groups["models"] = [c for c in models if c["id"] not in done]
+    have = {c["id"]: c for g in ("hf", "arxiv", "github", "trending", "models") for c in groups[g]}
+    try:
+        nominees = nominated(hn, links, have, token)
+    except Exception as e:  # noqa: BLE001  the signals are extras: losing them never stops the night
+        errors.append("nominated: %s" % str(e)[:200])
+        nominees = []
+    groups["nominated"] = [c for c in nominees if c["id"] not in done]
 
     # full texts, politely (arXiv asks for no more than one request a second)
-    for c in groups["hf"][:FULL_HF] + groups["arxiv"][:FULL_ARXIV]:
+    papers_nominated = [c for c in groups["nominated"] if c["kind"] == "paper"]
+    for c in groups["hf"][:FULL_HF] + groups["arxiv"][:FULL_ARXIV] + groups["trending"][:FULL_TRENDING] + papers_nominated[:FULL_NOMINATED]:
         text = arxiv_text(c["id"].split(":", 1)[1])
         time.sleep(1)
         if text:
             c["_text"] = text
     for c in groups["github"]:
         c["_text"] = readme(c["title"], token)
-    candidates = groups["hf"] + groups["arxiv"] + groups["github"] + groups["blogs"]
+    candidates = (groups["hf"] + groups["arxiv"] + groups["trending"] + groups["models"] + groups["github"]
+                  + groups["nominated"] + groups["blogs"])
     for c in candidates:
         text = c.pop("_text", None)
         c["text"] = None
@@ -488,9 +773,13 @@ def flat(s):
 
 
 def source_text(index_dir, c):
-    meta = " ".join(str(c.get(k) or "") for k in ("id", "title", "url", "code", "org", "hf_upvotes", "github_stars",
-                                                    "stars", "stars_today", "published", "lab"))
-    meta += " " + " ".join(c.get("authors") or []) + " " + str(c.get("authors_total") or "")
+    """What a card about candidate `c` may rest on: its collected facts (title, signals, dates) and its texts."""
+    facts = []
+    for k, v in c.items():
+        if k in ("abstract", "text"):
+            continue
+        facts += [str(x) for x in v] if isinstance(v, list) else [str(v)] if v is not None else []
+    meta = " ".join(facts)
     body = c.get("abstract") or ""
     if c.get("text"):
         body += "\n" + (index_dir / c["text"]).read_text(encoding="utf-8")
@@ -528,8 +817,8 @@ def check(issue, root=ROOT, name=None):
     done = printed(root, skip=name) - same_day
     seen = set()
     items = radar.get("items") or []
-    if len(items) != CARDS:
-        errors.append("radar.items: %d cards, a RADAR page has %d" % (len(items), CARDS))
+    if not CARDS_MIN <= len(items) <= CARDS_MAX:
+        errors.append("radar.items: %d cards, RADAR carries %d to %d" % (len(items), CARDS_MIN, CARDS_MAX))
     for i, card in enumerate(items):
         at = "radar.items[%d]" % i
         c = by_id.get(card.get("id"))

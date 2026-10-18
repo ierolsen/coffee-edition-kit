@@ -1,7 +1,8 @@
 name: radar
 
-# Collects the night's RADAR candidates before the nightly routine runs: Hugging Face Daily
-# Papers, arXiv's new submissions, GitHub trending and six lab blogs, each kept with its text
+# Collects the night's RADAR candidates before the nightly routine runs: Hugging Face daily and
+# trending papers and new models, arXiv's new submissions, GitHub trending, eleven lab blogs, and the
+# papers, models and repositories Hacker News and four newsletters point at, each kept with its text
 # under sources/radar/<date>/. The routine's machine cannot reach arXiv and most of these
 # sites; it reads only what this run commits (scripts/radar.py, edition/STYLE.md "RADAR").
 # It does nothing until printer.json has "radar": true and "nightly" is not "off".
@@ -10,7 +11,7 @@ name: radar
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '30 1 * * *'   # after arXiv's nightly announcement (00:00 UTC in summer, 01:00 UTC in winter)
   workflow_dispatch:
     inputs:
       date:

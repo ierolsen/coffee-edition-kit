@@ -330,7 +330,7 @@ def check_radar(tmp):
         (lambda r: r["scanned"].__setitem__("hf", 151), "copy it from the index as is"),
         (lambda r: r["also"][0].__setitem__("title", "Tool"), "copy the candidate's title as is"),
         (lambda r: r["also"][0].__setitem__("text", "Cuts tokens by 50x."), "the number 50 is not in"),
-        (lambda r: r["items"].pop(), "4 cards, a RADAR page has 5"),
+        (lambda r: r["items"].pop(), "4 cards, RADAR carries 5 to 17"),
     ]
     for change, want in cases:
         found = errs(change)
@@ -391,6 +391,74 @@ def check_radar(tmp):
           "in the source text, the headline and the list too; HF, arXiv and GitHub pages parse offline")
 
 
+def check_radar_sources():
+    """The added RADAR sources on canned pages: HF Trending Papers, trending models with their cards,
+    Hacker News and the newsletters, which only nominate and add their signal to a candidate."""
+    import html as htmlmod
+    trending = {"dailyPapers": [
+        {"paper": {"id": "2610.30001", "title": "Fresh: A Method", "githubStars": 900, "upvotes": 40, "publishedAt": "2026-10-10T00:00:00.000Z",
+                   "summary": "Fresh gains 7.5 points.", "githubRepo": "https://github.com/f/fresh", "authors": [{"name": "A"}]}},
+        {"paper": {"id": "2412.20138", "title": "Old: Agents", "githubStars": 99999, "upvotes": 9, "publishedAt": "2024-12-28T00:00:00.000Z",
+                   "summary": "Old.", "authors": []}}]}
+    card = "---\nlicense: mit\n---\n\n# NewModel\n\n<!-- note -->\nNewModel is a 7B model that scores 61.2 on MMLU-Pro.\n\n" + "Details. " * 80
+    hn = {"hits": [
+        {"title": "NewModel is out on Hugging Face", "url": "https://huggingface.co/lab/NewModel", "points": 900, "num_comments": 300, "objectID": "1"},
+        {"title": "A guide to fine-tuning small LLMs", "url": "https://example.com/post", "points": 300, "num_comments": 50, "objectID": "2"},
+        {"title": "Show HN: a bread recipe", "url": "https://example.com/bread", "points": 800, "num_comments": 10, "objectID": "3"}]}
+    letter = ('<?xml version="1.0"?><rss xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><item><title>Week</title>'
+              '<pubDate>Fri, 16 Oct 2026 10:00:00 GMT</pubDate><content:encoded>' + htmlmod.escape(
+                  '<a href="https://github.com/t/template">t</a> <a href="https://arxiv.org/abs/2610.30002">p</a> '
+                  '<a href="https://github.com/u/agentkit">a</a> <a href="https://arxiv.org/abs/2610.30003">q</a> '
+                  '<a href="https://arxiv.org/abs/2610.30004">r</a> <a href="https://arxiv.org/abs/2610.30005">s</a>')
+              + '</content:encoded></item></channel></rss>')
+    arxiv_api = ('<feed xmlns="http://www.w3.org/2005/Atom">' + "".join(
+        '<entry><id>http://arxiv.org/abs/2610.3000%dv1</id><title>Paper %d</title><summary>Abstract %d with 3.%d points.</summary>'
+        '<published>2026-10-15T00:00:00Z</published><author><name>X</name></author></entry>' % (i, i, i, i) for i in (2, 3, 4)) + "</feed>")
+    canned = [
+        ("huggingface.co/papers/trending", '<div data-target="DailyPapers" data-props="%s"></div>' % htmlmod.escape(json.dumps(trending))),
+        ("huggingface.co/api/models?", json.dumps([
+            {"id": "lab/NewModel", "createdAt": "2026-10-12T00:00:00.000Z", "likes": 500, "downloads": 10, "pipeline_tag": "text-generation"},
+            {"id": "someone/NewModel-GGUF", "createdAt": "2026-10-13T00:00:00.000Z", "likes": 900},
+            {"id": "lab/OldModel", "createdAt": "2025-01-01T00:00:00.000Z", "likes": 9000}])),
+        ("huggingface.co/api/models/", json.dumps({"id": "lab/NewModel", "likes": 500})),
+        ("/raw/main/README.md", card),
+        ("hn.algolia.com", json.dumps(hn)),
+        ("raw.githubusercontent.com/t/template", "# Template\nA cookiecutter for Python libraries."),
+        ("raw.githubusercontent.com/u/agentkit", "# AgentKit\nAn LLM agent toolkit with MCP tools."),
+        ("export.arxiv.org", arxiv_api),
+        ("example.com/post", "<html><article><h1>Fine-tuning</h1><p>" + "Fine-tune a 1B LLM in 20 minutes. " * 30 + "</p></article></html>"),
+        ("interconnects", letter),
+    ]
+    real_fetch, real_letters = radar.fetch, radar.LETTERS
+    def fake(url, **kw):
+        for key, body in canned:
+            if key in url:
+                return body.encode()
+        raise RuntimeError("%s: HTTP 404" % url)
+    radar.fetch, radar.LETTERS = fake, (("interconnects", "Interconnects", "https://www.interconnects.ai/feed"),)
+    try:
+        papers = radar.hf_trending(D(2026, 10, 19))
+        models = radar.hf_models(D(2026, 10, 19))
+        hits, stories = radar.hn_stories(datetime.datetime(2026, 10, 18, 20, 0, tzinfo=UTC))
+        links, items, errors = radar.letter_links(D(2026, 10, 19))
+        have = {c["id"]: c for c in models}
+        nominees = radar.nominated(stories, links, have)
+    finally:
+        radar.fetch, radar.LETTERS = real_fetch, real_letters
+    assert [c["id"] for c in papers] == ["arxiv:2610.30001"] and papers[0]["github_stars"] == 900, "only recent trending papers"
+    assert [c["id"] for c in models] == ["model:lab/NewModel"], "re-quantized and old models are left out"
+    assert "61.2 on MMLU-Pro" in models[0]["abstract"] and "license" not in models[0]["_text"], "the card's prose, not its YAML"
+    assert len(hits) == 3 and [h["objectID"] for h in stories] == ["1", "2"], "Hacker News: AI stories only, best first"
+    assert items == 1 and len(links) == 3 and [k for _, _, k, _ in links] == ["paper", "paper", "paper"], links
+    assert have["model:lab/NewModel"]["hn_points"] == 900 and "hn" in have["model:lab/NewModel"]["from"], "HN's link to a model page signals the model"
+    ids = [c["id"] for c in nominees]
+    assert "web:example.com:post" in ids and "arxiv:2610.30002" in ids and not any(i.startswith("github:t/") for i in ids), ids
+    paper = next(c for c in nominees if c["id"] == "arxiv:2610.30002")
+    assert paper["mentioned_in"] == ["Interconnects"] and paper["abstract"].startswith("Abstract 2"), paper
+    print("radar sources ok: trending papers of the last month, new models with their cards (no re-uploads), HN stories "
+          "about AI, newsletters a few links each; signals land on the candidate they point at")
+
+
 def main():
     check_dates()
     check_frontmatter()
@@ -401,6 +469,7 @@ def main():
         check_verify(tmp)
         check_log_table(tmp)
         check_radar(tmp)
+    check_radar_sources()
     check_prepare_guards()
     check_repo_notes()
     return 0
