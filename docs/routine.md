@@ -30,7 +30,7 @@ The routine writes, then `commit_issue.sh` builds the issue in full, pushes it a
 
 ### RADAR, if you turned it on
 
-With `"radar": true` in `printer.json`, the `radar` workflow collects the night's candidates into `sources/radar/<date>/` before the routine runs, because the routine's machine cannot reach arXiv or most of the other sources. Its schedule is in UTC: `cron: '0 1 * * *'` in `.github/workflows/radar.yml`, 01:00 UTC. Move it so it runs an hour or more before your routine (GitHub can start scheduled runs a little late). If the routine finds no candidates for the date, it writes the issue without a RADAR page and says so in its summary. To try it once, run the workflow by hand from the Actions tab (**Run workflow**, with an empty date).
+With `"radar": true` in `printer.json`, the `radar` workflow collects the night's candidates into `sources/radar/<date>/` before the routine runs, because the routine's machine cannot reach arXiv or most of the other sources. Its schedule is in UTC: `cron: '30 1 * * *'` in `.github/workflows/radar.yml`, 01:30 UTC, after arXiv's nightly announcement (00:00 UTC in northern summer, 01:00 UTC in winter). Move it so it runs an hour or more before your routine (GitHub can start scheduled runs a little late). If the routine finds no candidates for the date, it writes the issue without a RADAR page and says so in its summary. To try it once, run the workflow by hand from the Actions tab (**Run workflow**, with an empty date).
 
 ### Pushing to main
 

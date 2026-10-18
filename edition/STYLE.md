@@ -119,44 +119,66 @@ Read it once yourself before that:
 
 ## 11. RADAR
 
-When `printer.json` has `"radar": true`, every issue carries one more page at the back: five new AI
-methods from the night before. It is for skimming. It never runs past one page, and it never takes
-the place of the issue.
+When `printer.json` has `"radar": true`, every issue carries RADAR at the back: new AI methods,
+models and tools from the night before, 5 to 17 cards. It is for skimming, and it never takes the
+place of the issue. Every RADAR page is two rows of three cells; the cards fill the pages in order and
+the list takes the last cell of the last page: 5 cards make one page, 11 two pages, 17 three. It never
+runs past three pages.
 
 - **Material.** `radar.yml` collects the candidates into `sources/radar/<date>/` an hour or more
-  before you run: Hugging Face Daily Papers (the last three days, by upvotes), arXiv's new
-  submissions of the day (cs.CL, cs.LG, cs.AI; those that link their code), GitHub's trending AI
-  repositories and six lab blogs (OpenAI, Google DeepMind, Google Research, Hugging Face, Anthropic,
-  Meta AI). `index.json` lists each candidate with its id, title, authors, code link, signal (upvotes,
-  stars today) and `abstract`; when `text` is set, the full text is under `texts/`. If the pick says
-  `radar.ready: false`, write no RADAR and say why in the summary.
+  before you run:
+  - **Papers:** Hugging Face Daily Papers (the last three days, by upvotes), Hugging Face Trending
+    Papers (papers with code from the last 30 days, by GitHub stars), and arXiv's new submissions of
+    the day (cs.CL, cs.LG, cs.AI; those that link their code).
+  - **Models:** new open models trending on Hugging Face (created in the last 45 days), with their
+    model cards (`model:<owner>/<name>`). Re-quantized uploads and models made to remove safety are
+    left out.
+  - **Repositories:** GitHub's trending AI repositories, with their READMEs.
+  - **Lab blogs:** OpenAI, Google DeepMind, Google Research, Hugging Face, Anthropic, Meta AI,
+    Microsoft Research, Apple Machine Learning Research, NVIDIA (AI posts only), Ai2 and Mistral AI;
+    at most two posts per lab a night.
+  - **Signals, which only nominate:** Hacker News stories about AI from the last two days (80 points
+    or more) and four newsletters (Interconnects, Import AI, Simon Willison, Latent Space). What they
+    link to becomes a candidate, or adds their signal to one (`hn_points`, `mentioned_in`); another
+    page Hacker News points at becomes a `web:<site>:<path>` candidate with the page's text. A card's
+    facts always come from the primary source, never from a newsletter's commentary.
+
+  `index.json` lists each candidate with its id, title, authors, code link, signals and `abstract`;
+  when `text` is set, the full text (paper, README, model card or page) is under `texts/`. If the pick
+  says `radar.ready: false`, write no RADAR and say why in the summary.
 - **Source discipline.** Read only `index.json` and `texts/`, never the web. Every number, name and
   claim on a card stands in that candidate's abstract or text. Hugging Face's own summaries
   (`ai_summary`) are never collected and never a source. A work that was on an earlier RADAR page,
   as a card or in a list, never comes back: `collect` leaves it out.
-- **Choosing.** Look through all of `index.json` first, then pick five candidates that have a text: a
-  new method or algorithm (not only a benchmark, not company news), measured with a number, with code
-  where possible. Take the five from different areas (agents, training, reasoning, video, tools, for
-  example), and make at least one a tool or library the reader could use today. Upvotes and stars are
-  signals, not the decision.
+- **Choosing.** Look through all of `index.json` first, then pick the night's best candidates that
+  have a text: a new method, algorithm, model or tool (not company news, not a product
+  announcement), measured with a number, with code or weights where possible. As many cards as there
+  are strong candidates, filling the pages: aim for 11 (two pages) or 17 (three); on a thin night 5
+  is fine. Never pad with weak cards. The kinds need not balance, but pick different ideas, not
+  several takes on one. Upvotes, stars, Hacker News points and a newsletter mention are signals, not
+  the decision.
 - **A card.** `id` the candidate's; `area` one word in capitals (`AGENTS`, `TRAINING`, `VIDEO`,
-  `REASONING`, `TOOL`); `signal` short ("HF 344 upvotes", "1647 stars today", "arXiv, 16 Oct");
+  `REASONING`, `TOOL`); `signal` short ("HF 344 upvotes", "1647 stars today", "arXiv, 16 Oct", "HN 929 points", "in
+  Import AI", "HF 2651 likes");
   `name` the method's own name; `what` one sentence, what it is; `how` two or three sentences, how it
   works, the parts the method names in bold; `when` one sentence, when it helps or whom; `number` the
   card's one big figure: `value` short ("+3.44 pts", "100×+", "2.7×"), `says` what it measures (which
   model, which benchmark, against what), `quote` the source's sentence that carries it, **word for
   word** (it does not print; the check reads it); `code` without `https://`
   (`github.com/owner/repo`); `source` the lab or the first author with "et al." and the arXiv number
-  ("Yu et al. · arXiv 2610.20642"), or "owner · GitHub trending" for a repository.
+  ("Yu et al. · arXiv 2610.20642"), "owner · GitHub trending" for a repository, "Google · Hugging Face"
+  for a model, the site's name for a page Hacker News pointed at. For a model, `code` is the model page
+  (`huggingface.co/<owner>/<name>`) and the numbers come from its model card.
 - **The list.** `also` holds 4 or 5 more works: `title` the candidate's title as is (the page prints
   the part before the colon) and `text` one sentence.
-- **Headline.** `headline` ties three of the cards into one line; every number in it comes from the
+- **Headline.** `headline` ties the three strongest cards into one line; every number in it comes from the
   cards' sources. Copy `scanned` from `index.json` as is; `date` is the issue's date.
 - **Length.** About 70 to 80 words a card across `what`, `how`, `when` and `says`. The build before
   the push keeps a line free in every cell, because the Linux build that prints can break a line
   differently. When a card does not fit, the error names it and the lines to cut.
-- **RADAR never costs an issue.** If the radar part fails its checks twice, delete it and send the
-  issue without it; say why in the summary.
+- **RADAR never costs an issue.** Take out a card that fails its checks and cannot be fixed (its work
+  does not go into the list either). If fewer than 5 valid cards are left, delete the radar part and
+  send the issue without it; say why in the summary.
 - **The check.** `next_issue.py verify` (run by `commit_issue.sh`) also runs `scripts/radar.py
   check`: each id is one of the night's candidates and was never printed, every number on a card is
   in its source, the quote stands there word for word and carries the callout number, the name and

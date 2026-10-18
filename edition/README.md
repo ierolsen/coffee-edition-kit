@@ -106,8 +106,8 @@ The results table (`results.table`) is a `table` with extras:
 
 ### RADAR
 
-An optional page at the back of the issue: five new AI methods from the night before (what to write
-is in [STYLE.md](STYLE.md), section 11). It prints when `printer.json` has `"radar": true`. The
+Optional pages at the back of the issue: new AI methods, models and tools from the night before, 5 to
+17 cards on one to three pages (what to write is in [STYLE.md](STYLE.md), section 11). It prints when `printer.json` has `"radar": true`. The
 `radar` part sits in the issue file; a file can also hold a RADAR page alone (no `front`, only
 `version`, `issue`, `date`, `print_time` and `radar`).
 
@@ -126,15 +126,18 @@ is in [STYLE.md](STYLE.md), section 11). It prints when `printer.json` has `"rad
 }
 ```
 
-- `items` holds exactly 5 cards; each `id` is a candidate in that night's
-  `sources/radar/<date>/index.json` (`arxiv:<id>`, `github:<owner>/<repo>`, `blog:<lab>:<slug>`).
+- `items` holds 5 to 17 cards; each `id` is a candidate in that night's
+  `sources/radar/<date>/index.json` (`arxiv:<id>`, `github:<owner>/<repo>`, `model:<owner>/<name>`,
+  `blog:<lab>:<slug>`, `web:<site>:<path>`).
   `area` is in capitals; `code` has no `https://`. `number.quote` does not print; `scripts/radar.py
   check` reads it.
 - `also` holds up to 6 lines; `title` is the candidate's title as is, the page prints the part before
   the colon.
-- The page lays out as two rows of three cells (five cards and the list) and never runs onto a second
-  page. It comes after the closing band and does not count against the four pages. Its head and footer
-  come from the `radar_*` labels in `labels.json`.
+- Each page lays out as two rows of three cells; the cards fill the pages in order and the list takes
+  the last cell (5 cards: one page, 11: two, 17: three). The first page carries the head, the next
+  ones a running title ("RADAR, continued"). RADAR comes after the closing band and does not count
+  against the four pages. Its head counts what was scanned by kind (papers, models, repos, posts);
+  the head and footer come from the `radar_*` labels in `labels.json`.
 - Sample: `fixtures/radar.edition.json`.
 
 ### Inline markup

@@ -10,7 +10,7 @@ You keep notes in a folder. Every night a Claude routine turns the next one into
 
 *The sample issue, written from the included note on the Raven paper (EverMind AI, arXiv 2609.33439, CC BY 4.0).*
 
-**RADAR, if you follow AI.** With `"radar": true` in `printer.json`, every issue gets one more page at the back: five new AI methods from the night before, picked from Hugging Face Daily Papers, arXiv's new submissions, GitHub trending and AI lab blogs. Each card says what the method is, how it works, when to use it, gives one number and links the code; every number is checked against its source before the push.
+**RADAR, if you follow AI.** With `"radar": true` in `printer.json`, every issue gets one to three more pages at the back: 5 to 17 new AI methods, models and tools from the night before, picked from Hugging Face (daily and trending papers, new models), arXiv's new submissions, GitHub trending and eleven AI lab blogs, with Hacker News and four AI newsletters as signals. Each card says what the method is, how it works, when to use it, gives one number and links the code; every number is checked against its source before the push.
 
 <img src="docs/img/radar-page.png" alt="A RADAR page: five cards on new AI methods and a list of more" width="420">
 
@@ -69,7 +69,7 @@ The writer does not browse the web. The issue is only as good as the note: put i
 - **To look back:** `log/prints.md` lists what was queued, printed, drafted, refused or skipped, and the `archive` branch keeps every PDF.
 - **To pause:** `"nightly": "off"` in `printer.json`, or switch the routine off.
 - **To change the voice:** edit [edition/STYLE.md](edition/STYLE.md); section 0 describes you, the reader.
-- **RADAR:** `"radar": true` in `printer.json` adds the back page of new AI methods. The `radar` workflow collects the candidates at 01:00 UTC; move its cron so it runs an hour or more before your routine ([docs/routine.md](docs/routine.md)).
+- **RADAR:** `"radar": true` in `printer.json` adds the back page of new AI methods. The `radar` workflow collects the candidates at 01:30 UTC; move its cron so it runs an hour or more before your routine ([docs/routine.md](docs/routine.md)).
 - **Another language:** translate [edition/labels.json](edition/labels.json) (the words printed around the article) and tell the writer in STYLE.md which language to write in. `edition/fixtures/labels-tr.json` is a Turkish example.
 
 ## What it costs

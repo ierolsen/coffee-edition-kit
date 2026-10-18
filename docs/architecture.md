@@ -12,7 +12,7 @@ notes/  ->  Claude routine  ->  inbox/<date>.edition.json  ->  GitHub Actions  -
 2. **The press** is GitHub Actions. `prepare.yml` runs on every push to `inbox/`: `scripts/prepare.py` lays each issue out in headless Chrome (`edition/build.mjs`), checks the PDF, converts it to the formats the printer takes, and `scripts/publish.sh` publishes the result.
 3. **The courier** is the Pico. It reads the queue, holds each job until its print time and streams it to the printer over IPP, then reports back through `print-log.yml`.
 4. **The record** is `log/prints.jsonl` on `main`, rendered as `log/prints.md`.
-5. **RADAR** (optional, `"radar": true`): `radar.yml` collects the night's candidates before the writer runs (`scripts/radar.py collect`, into `sources/radar/<date>/`), the writer adds a `radar` part to the issue, and `scripts/radar.py check` ties every card back to its candidate.
+5. **RADAR** (optional, `"radar": true`): `radar.yml` collects the night's candidates before the writer runs (`scripts/radar.py collect`, into `sources/radar/<date>/`: Hugging Face daily and trending papers and new models, arXiv, GitHub trending, eleven lab blogs, with Hacker News and four newsletters as signals that only nominate), the writer adds a `radar` part to the issue, and `scripts/radar.py check` ties every card back to its candidate.
 
 ## Branches
 
