@@ -6,8 +6,8 @@ A slip here prints a paper at a wrong hour, twice in a morning, or the same note
 rule is tried in a scratch git repository: the issue date around the print time, midnight and
 the daylight saving switches (UTC, Europe/London, America/New_York), the frontmatter reader,
 which notes count and in what order, pictures next to notes (committed or not), the issue
-number with dry-run nights in between, "already prepared", "no notes", verify, prepare's guards
-and the print log's table. Last, the kit's own notes/ folder must be readable and give a pick.
+number with dry-run nights in between, "already prepared", "no notes", verify, prepare's guards,
+a reprint's print day and the print log's table. Last, the kit's own notes/ folder must be readable and give a pick.
 """
 import datetime
 import json
@@ -308,6 +308,22 @@ def radar_root(tmp):
     return root, issue
 
 
+def check_print_date(tmp):
+    """A reprint by hand keeps its date in the masthead and prints on its print_date, at that day's
+    local time (here across the end of daylight saving time in New York, 1 November 2026)."""
+    cfg = {"edition_print_time": "07:30", "timezone": "America/New_York"}
+    src = Path(tmp) / "reprint.edition.json"
+    src.write_text(json.dumps({"version": 1, "issue": 5, "date": "2026-10-30", "print_date": "2026-11-02", "print_time": "08:15", "radar": {}}))
+    _, at = prepare.schedule(src, cfg, Path(tmp))
+    assert at == "2026-11-02T13:15:00+00:00", at
+    src.write_text(json.dumps({"version": 1, "issue": 5, "date": "2026-10-30", "print_date": "2026-11-02", "radar": {}}))
+    built, at = prepare.schedule(src, cfg, Path(tmp))
+    assert at == "2026-11-02T12:30:00+00:00" and json.loads(built.read_text())["print_time"] == "07:30", (at, "printer.json's time on the print day")
+    src.write_text(json.dumps({"version": 1, "issue": 5, "date": "2026-10-30", "print_time": "08:15", "radar": {}}))
+    assert prepare.schedule(src, cfg, Path(tmp))[1] == "2026-10-30T12:15:00+00:00", "without print_date: its own date"
+    print("print date ok: a reprint keeps its date in the masthead and prints on its print day, at that day's local time")
+
+
 def check_radar(tmp):
     """RADAR: every card is one of the night's candidates, never printed before, and every number
     in it stands in the candidate's text; the sources' parsers read canned pages without a network."""
@@ -469,6 +485,7 @@ def main():
         check_verify(tmp)
         check_log_table(tmp)
         check_radar(tmp)
+        check_print_date(tmp)
     check_radar_sources()
     check_prepare_guards()
     check_repo_notes()

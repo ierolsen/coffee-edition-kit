@@ -235,6 +235,10 @@ function validate(issue, labels) {
   for (const k of radarOnly ? ["date"] : ["date", "edition", "short_title", "kicker", "byline", "headline", "standfirst", "takeaway"]) text(issue, k, "issue");
   if (typeof issue.date === "string" && !/^\d{4}-\d{2}-\d{2}$/.test(issue.date)) errors.push("issue.date: YYYY-MM-DD");
   if (issue.print_time != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(issue.print_time)) errors.push("issue.print_time: HH:MM in printer.json's timezone, like 07:30");
+  if (issue.print_date != null) {
+    if (typeof issue.print_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(issue.print_date)) errors.push("issue.print_date: YYYY-MM-DD, the day a reprint prints on");
+    else if (issue.note != null) errors.push("issue.print_date: only a reprint by hand (no note) prints on another day than its date");
+  }
   caps(issue.kicker, "issue.kicker");
   caps(issue.edition, "issue.edition");
   if (!radarOnly) {

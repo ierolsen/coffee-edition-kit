@@ -15,7 +15,8 @@ An issue is printed at its print_time (HH:MM in printer.json's "timezone", an IA
 as Europe/London, default UTC) on its date, falling back to edition_print_time in printer.json.
 The job carries that moment as print_at (UTC) and as print_local (the same moment as local
 time, for the Pico's log), and the Pico holds it until then. Daylight saving time is handled
-by the timezone database. Other documents print as soon as the Pico sees them.
+by the timezone database. A reprint by hand (an issue without a `note`) may print on another
+day than its date: its print_date. Other documents print as soon as the Pico sees them.
 
 A Coffee Edition issue (*.edition.json) goes through edition/build.mjs, which
 paginates it and checks the PDF before anything is queued. If that check fails,
@@ -230,10 +231,12 @@ def schedule(src, cfg, workdir):
     if issue is None:
         return src, None  # not an issue, or unreadable (build.mjs reports that)
     when = issue.get("print_time") or cfg.get("edition_print_time")
-    if not isinstance(when, str) or not isinstance(issue.get("date"), str):
+    # a reprint keeps its own date in the masthead and prints on print_date (YYYY-MM-DD)
+    printed_on = issue.get("print_date") or issue.get("date")
+    if not isinstance(when, str) or not isinstance(printed_on, str):
         return src, None
     try:
-        day = datetime.date.fromisoformat(issue["date"])
+        day = datetime.date.fromisoformat(printed_on)
         hour, minute = (int(x) for x in when.split(":"))
         local = datetime.datetime(day.year, day.month, day.day, hour, minute, tzinfo=zone(cfg))
     except ValueError:
