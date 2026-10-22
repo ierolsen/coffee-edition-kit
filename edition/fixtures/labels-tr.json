@@ -53,7 +53,7 @@
   "fi_inside_more": "ve göz atmaya değer {count} çalışma daha",
   "fi_data": "Veri:",
   "fi_made_title": "BU GAZETE NASIL HAZIRLANIYOR",
-  "fi_made": "Bir akşam önceden bir betik Hugging Face, arXiv, GitHub trending, lab blogları, Hacker News ve bültenleri okur. Gece bir AI yazar yöntemleri seçip yazar; ayrı bir kontrol, sayfa basılmadan önce her sayıyı ve her grafiği kaynağıyla karşılaştırır. Baskı saati gelince ({time}) bir Raspberry Pi Pico W sayfaları yazıcıya gönderir.",
+  "fi_made": "Yazar çalışmadan önce bir betik Hugging Face, arXiv, GitHub trending, lab blogları, Hacker News ve bültenleri okur. Gece bir AI yazar yöntemleri seçip yazar; ayrı bir kontrol, sayfa basılmadan önce her sayıyı ve her grafiği kaynağıyla karşılaştırır. Baskı saati gelince ({time}) bir Raspberry Pi Pico W sayfaları yazıcıya gönderir.",
   "fi_scanned_title": "Bu sayı için taranan çalışmalar, kaynağa göre",
   "fi_scanned_total": "Toplam {total} çalışma; {count} tanesi sayfaya girdi.",
   "fi_src_arxiv": "arXiv yeni",

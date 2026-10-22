@@ -53,7 +53,7 @@
   "fi_inside_more": "and {count} more worth a look",
   "fi_data": "Data:",
   "fi_made_title": "HOW THIS PAPER IS MADE",
-  "fi_made": "The evening before, a script reads Hugging Face, arXiv, GitHub trending, lab blogs, Hacker News and newsletters. Overnight an AI writer picks the methods and writes them up, and a separate check matches every number and every chart to its source before the page can print. At print time ({time}) a Raspberry Pi Pico W sends the pages to the printer.",
+  "fi_made": "Before the writer runs, a script reads Hugging Face, arXiv, GitHub trending, lab blogs, Hacker News and newsletters. Overnight an AI writer picks the methods and writes them up, and a separate check matches every number and every chart to its source before the page can print. At print time ({time}) a Raspberry Pi Pico W sends the pages to the printer.",
   "fi_scanned_title": "Works scanned for this issue, by source",
   "fi_scanned_total": "{total} works in all; {count} made the page.",
   "fi_src_arxiv": "arXiv new",
