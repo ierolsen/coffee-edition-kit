@@ -12,7 +12,7 @@ notes/  ->  Claude routine  ->  inbox/<date>.edition.json  ->  GitHub Actions  -
 2. **The press** is GitHub Actions. `prepare.yml` runs on every push to `inbox/`: `scripts/prepare.py` lays each issue out in headless Chrome (`edition/build.mjs`), checks the PDF, converts it to the formats the printer takes, and `scripts/publish.sh` publishes the result.
 3. **The courier** is the Pico. It reads the queue, holds each job until its print time and streams it to the printer over IPP, then reports back through `print-log.yml`.
 4. **The record** is `log/prints.jsonl` on `main`, rendered as `log/prints.md`.
-5. **RADAR** (optional, `"radar": true`): `radar.yml` collects the night's candidates before the writer runs (`scripts/radar.py collect`, into `sources/radar/<date>/`: Hugging Face daily and trending papers and new models, arXiv, GitHub trending, eleven lab blogs, with Hacker News and four newsletters as signals that only nominate), the writer adds a `radar` part to the issue, and `scripts/radar.py check` ties every card back to its candidate.
+5. **Fresh Ink** (optional, `"radar": true`): `radar.yml` collects the night's candidates before the writer runs (`scripts/radar.py collect`, into `sources/radar/<date>/` with each source's text and tables: Hugging Face daily and trending papers and new models, arXiv, GitHub trending, eleven lab blogs, with Hacker News and four newsletters as signals that only nominate), the writer adds a `radar` part to the issue (one to four pages, charts redrawn from the sources' tables, a QR code per story), and `scripts/radar.py check` ties every card, number and chart value back to its candidate.
 
 ## Branches
 
@@ -54,7 +54,7 @@ notes/  ->  Claude routine  ->  inbox/<date>.edition.json  ->  GitHub Actions  -
 
 | Event | Added by | When |
 |---|---|---|
-| `queued` | prepare | a job entered the queue (title, topic, pages, `print_at`, and for nightly issues `note`, `issue`, `date`; for a RADAR page the ids of its cards, `radar`, and of its list, `radar_also`, so a work never comes back) |
+| `queued` | prepare | a job entered the queue (title, topic, pages, `print_at`, and for nightly issues `note`, `issue`, `date`; for Fresh Ink the ids of its cards, `radar`, and of its list, `radar_also`, so a work never comes back) |
 | `drafted` | prepare | a nightly issue was built and archived but not queued (`nightly` is `dry-run`) |
 | `rejected` | prepare | the build refused an issue; the first error is kept, the file stays in `inbox/` |
 | `skipped` | prepare | a nightly issue arrived too late, or its date already had an issue; the file is removed |
@@ -70,7 +70,7 @@ A paper must never print at a wrong hour, twice in a morning, or broken. Each gu
 |---|---|
 | The issue is exactly the pick for its date: note, number, print time, file name, only the note's pictures | `next_issue.py verify`, before the push |
 | Fields, blocks, characters; with Chrome, the pages too, and the PDF where poppler is installed | `build.mjs --preflight`, before the push |
-| RADAR: every card is one of the night's candidates and never printed before; every number and quote stands in its source | `radar.py check` through `next_issue.py verify`, before the push |
+| Fresh Ink: every card is one of the night's candidates and never printed before; every number, quote and chart value stands in its source; each QR link is the candidate's own | `radar.py check` through `next_issue.py verify`, before the push |
 | Nothing that looks like a token or a key | `commit_issue.sh`, before the push |
 | The commit carries no extra lines, and the expected author | `commit_issue.sh` |
 | The real layout and the PDF itself: page count, every character on every page | `build.mjs` in `prepare`, after the push |

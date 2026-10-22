@@ -28,9 +28,9 @@ The same can be done from Claude Code's CLI with `/schedule` (also `/routines`):
 
 The routine writes, then `commit_issue.sh` builds the issue in full, pushes it and waits for GitHub Actions to queue it: about five to ten minutes on a good night. When a check refuses the issue, the writer fixes it and tries again. Three hours leave room for that, and for a run that starts late. An issue that would print more than 30 minutes after its time is refused before the push, and GitHub Actions drops anything an hour late, so a very late night prints nothing rather than printing at lunch.
 
-### RADAR, if you turned it on
+### Fresh Ink, if you turned it on
 
-With `"radar": true` in `printer.json`, the `radar` workflow collects the night's candidates into `sources/radar/<date>/` before the routine runs, because the routine's machine cannot reach arXiv or most of the other sources. Its schedule is in UTC: `cron: '30 1 * * *'` in `.github/workflows/radar.yml`, 01:30 UTC, after arXiv's nightly announcement (00:00 UTC in northern summer, 01:00 UTC in winter). Move it so it runs an hour or more before your routine (GitHub can start scheduled runs a little late). If the routine finds no candidates for the date, it writes the issue without a RADAR page and says so in its summary. To try it once, run the workflow by hand from the Actions tab (**Run workflow**, with an empty date).
+With `"radar": true` in `printer.json`, the `radar` workflow collects the night's candidates, with their texts and tables, into `sources/radar/<date>/` before the routine runs, because the routine's machine cannot reach arXiv or most of the other sources. Its schedule is in UTC: `cron: '30 1 * * *'` in `.github/workflows/radar.yml`, 01:30 UTC, after arXiv's nightly announcement (00:00 UTC in northern summer, 01:00 UTC in winter). Move it so it runs an hour or more before your routine (GitHub can start scheduled runs a little late). If the routine finds no candidates for the date, it writes the issue without Fresh Ink and says so in its summary. To try it once, run the workflow by hand from the Actions tab (**Run workflow**, with an empty date).
 
 ### Pushing to main
 

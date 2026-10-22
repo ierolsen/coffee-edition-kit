@@ -23,7 +23,7 @@ What to write is in [STYLE.md](STYLE.md). This file is the format and the checks
 - The file: required fields, known block types, labels typed in capitals (in the labels' language, so Turkish `i` becomes `İ`), code lines of at most 30 characters, no em-dash or en-dash.
 - The labels file: every key, 7 weekdays (Sunday first), 12 months, every placeholder kept.
 - The fonts: all of them loaded, and every character present in one of the vendored fonts.
-- The layout: every line and box inside its own column, everything inside the page, at most 4 pages (the RADAR page comes on top). Every RADAR card inside its cell; with `--preflight`, a line free in every cell. A card that does not fit is named with the lines to cut.
+- The layout: every line and box inside its own column, everything inside the page, at most 4 pages (Fresh Ink comes on top, at most 4 more). Every Fresh Ink story inside its column and every chart's labels clear of each other; with `--preflight`, a line free on the Fresh Ink front page, and on every Fresh Ink page once it reaches four. A story that does not fit is named.
 - The printed PDF itself: the same page count as the layout, and on every page the same number of characters as the layout (a clipped line would go missing here).
 
 A part over about 800 words gets a warning: it usually means an extra page. The picture checks are under the block table below.
@@ -104,41 +104,85 @@ The results table (`results.table`) is a `table` with extras:
 - `delta: {column, label}`: after minus before;
 - `decimals` (default 1), and `tone: "muted"` on a column.
 
-### RADAR
+### Fresh Ink
 
 Optional pages at the back of the issue: new AI methods, models and tools from the night before, 5 to
-17 cards on one to three pages (what to write is in [STYLE.md](STYLE.md), section 11). It prints when `printer.json` has `"radar": true`. The
-`radar` part sits in the issue file; a file can also hold a RADAR page alone (no `front`, only
-`version`, `issue`, `date`, `print_time` and `radar`).
+17 cards on one to four pages, laid out like a newspaper (what to write is in [STYLE.md](STYLE.md),
+section 11). It prints when `printer.json` has `"radar": true`. The `radar` part sits in the issue
+file; a file can also hold Fresh Ink alone (no `front`, only `version`, `issue`, `date`,
+`print_time` and `radar`). Alone, its front page opens with the full masthead (the ears, the
+nameplate, the edition bar); after an article it opens under a running head. A reprint by hand (no
+`note`) keeps its own date in the masthead and prints on `print_date` (YYYY-MM-DD), at that day's
+print time.
 
 ```json
 "radar": {
-  "date": "2026-10-17",
-  "scanned": {"hf": 150, "arxiv": 403, "github": 8, "blogs": 10},
-  "headline": "100× faster video answers, an open agent that runs code, better reasoning without training",
+  "date": "2026-10-22",
+  "scanned": {"hf": 150, "arxiv": 614, "github": 8, "blogs": 10, "trending": 26, "models": 8, "hn": 86, "letters": 25},
+  "headline": "The night in one line",
   "items": [
-    {"id": "arxiv:2610.18615", "area": "VIDEO", "signal": "HF 344 upvotes", "name": "VideoJev",
+    {"id": "arxiv:2610.25736", "area": "ROBOTICS", "signal": "111 HF upvotes", "name": "CEL",
+     "headline": "96 Robots Learn From Each Other",
      "what": "...", "how": "...", "when": "...",
-     "number": {"value": "100×+", "says": "...", "quote": "the source's sentence, word for word"},
-     "code": "github.com/MCG-NJU/VideoJev", "source": "Nanjing University MCG · arXiv 2610.18615"}
+     "number": {"value": "79.2 → 98.3", "says": "...", "quote": "the source's sentence, word for word"},
+     "source": "Yu et al. · arXiv 2610.25736", "link": "https://arxiv.org/abs/2610.25736",
+     "chart": {"kind": "line", "title": "...", "what": "...", "table": "Table 11e, Yu et al.",
+               "x": {"values": [1, 4, 8, 16, 32, 64, 96], "log": true, "title": "..."},
+               "y": {"min": 0, "max": 100, "ticks": [0, 25, 50, 75, 100]}, "decimals": 1,
+               "series": [{"name": "...", "points": [[4, 50.83], [96, 98.33]]}],
+               "refs": [{"y": 79.17, "label": "start, 79.2%"}]}},
+    {"id": "arxiv:2610.26203", "brief": true, "...": "..."}
   ],
-  "also": [{"id": "arxiv:2610.18773", "title": "Jeva: System One Models from First Principles", "text": "..."}]
+  "also": [{"id": "arxiv:2610.22471", "title": "the candidate's title as is", "text": "..."}]
 }
 ```
 
 - `items` holds 5 to 17 cards; each `id` is a candidate in that night's
   `sources/radar/<date>/index.json` (`arxiv:<id>`, `github:<owner>/<repo>`, `model:<owner>/<name>`,
-  `blog:<lab>:<slug>`, `web:<site>:<path>`).
-  `area` is in capitals; `code` has no `https://`. `number.quote` does not print; `scripts/radar.py
-  check` reads it.
-- `also` holds up to 6 lines; `title` is the candidate's title as is, the page prints the part before
-  the colon.
-- Each page lays out as two rows of three cells; the cards fill the pages in order and the list takes
-  the last cell (5 cards: one page, 11: two, 17: three). The first page carries the head, the next
-  ones a running title ("RADAR, continued"). RADAR comes after the closing band and does not count
-  against the four pages. Its head counts what was scanned by kind (papers, models, repos, posts);
-  the head and footer come from the `radar_*` labels in `labels.json`.
-- Sample: `fixtures/radar.edition.json`.
+  `blog:<lab>:<slug>`, `web:<site>:<path>`). `area` is in capitals; `code` has no `https://`.
+  `number.quote` does not print; `scripts/radar.py check` reads it.
+- **Order.** The cards print in the writer's order. The first is the lead: its `headline` is the
+  front page's H1 and its `what` the deck below it; the second stands next to it. Cards with
+  `brief: true` (at most 4) go to IN BRIEF on the front page. The rest flow into two columns on the
+  next pages, each card going to the column with more room (a later, shorter card may fill a gap
+  first); a card is never split. The list (`also`, up to 6 lines) and the "How this paper is made"
+  box close the last page. More than 4 pages is refused, with what to do.
+- **A card.** The fields above, plus `headline` (the story's headline; without it the `name`
+  prints), `link` (the address the QR code opens, with `https://`; without it, it comes from `code`
+  or from an arXiv, GitHub or model id; a blog or web card must have it), and optional `brief` and
+  `chart`.
+- **Charts (`chart`).** Redrawn from the source's own table; `scripts/radar.py check` looks up every
+  value and every number in its words in the source's text or tables. Common fields: `kind`, `title`
+  (above the chart), `what` (the "What it shows" line below), `table` (the "Data:" line), optional
+  `decimals` (0 to 3, how many decimals the values print with) and `unit` (printed after a value,
+  "%" or " ms"). Three kinds:
+  - `bars`: `rows`, 2 to 10 rows of `[label, number]`; optional `labels` (the value texts to print,
+    like "≈1.55 s"; the bar length comes from `rows`), `sub` (a second line under each label, like
+    the hardware), `accent` (the rows to print solid), `side` (`{label, values}`: one more column on
+    the right) and `max`.
+  - `groups`: `series`, the names of 2 or 3 series; `rows`, 2 to 8 rows of `[label, one number per
+    series]`. The last series prints solid, the middle one hatched, the first outlined. With short
+    series names the values stand in columns on the right; with long ones a legend goes on top and
+    each value at the end of its bar.
+  - `line`: `x` (`{labels: [...]}`, evenly spaced names, or `{values: [...], log: true}`, numbers;
+    optional `title`), `y` (`{min, max, ticks}`), `series`, 1 to 3 lines (`{name, points: [[x, y],
+    [x, y, "label"]]}`; the first line is bold), optional `refs` (`[{y, label}]`, dashed lines).
+    Each line's last point is labelled with its value (or its own label), to the right, left, above
+    or below, wherever it touches nothing.
+
+  The page draws each chart at its story's width; when labels overlap, run out of the box or leave
+  the bars too little room, the chart is refused with the reason. A value must be as the source
+  writes it; its unit may change by a power of ten (1550 for the source's "1.55 s", 87 for "0.87").
+- **Words.** The masthead ears, the edition bar, the flag, IN BRIEF, INSIDE, "Data:", how the paper
+  is made and the source names come from the `fi_*` and `radar_*` labels in `labels.json`; the
+  `scanned` numbers fill them in.
+- **Samples:** `fixtures/fresh-ink.edition.json` (22 October 2026: 16 cards, 9 charts, 4 briefs,
+  four pages) and `fixtures/radar.edition.json` (17 October 2026, five cards in the older format: no
+  headlines or charts; it still prints as Fresh Ink).
+- The QR codes are drawn with `vendor/qrcode.js` (qrcode-generator 1.4.4, MIT). `test.mjs` reads the
+  printed pages at 300 dpi and checks that each code gives its own card's address (`qrdecode.py`,
+  with zxing-cpp and Pillow: `pip install zxing-cpp pillow`; `QR_PYTHON` names the Python to use).
+  Without them that one check is skipped.
 
 ### Inline markup
 
