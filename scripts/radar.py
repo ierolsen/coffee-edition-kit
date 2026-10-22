@@ -3,15 +3,18 @@
 
     python3 scripts/radar.py collect [--date YYYY-MM-DD]   # GitHub Actions (radar.yml), before the routine
     python3 scripts/radar.py check <issue.edition.json>    # the radar part's facts against that night's index
+    python3 scripts/radar.py tables --date YYYY-MM-DD      # add tables to an index collected before they were kept
 
 collect reads Hugging Face Daily Papers, arXiv's new submissions (cs.CL, cs.LG, cs.AI), GitHub
-trending and six lab blogs, keeps the candidates worth a card, stores their text under
-sources/radar/<date>/texts/ and writes sources/radar/<date>/index.json. A source that fails is
+trending and six lab blogs, keeps the candidates worth a card, stores their text and their
+tables (appendix included, for charts) under sources/radar/<date>/texts/ and writes
+sources/radar/<date>/index.json. A source that fails is
 recorded in the index and the others go on; the routine reads only these files.
 
 check: every card is one of that night's candidates and was never printed before, every number
-in a card stands in the candidate's stored text, the callout number's sentence is quoted from
-it word for word, and the name and the code link are the candidate's own.
+in a card (its headline and its chart included) stands in the candidate's stored text or tables,
+the callout number's sentence is quoted from it word for word, and the name, the code link and
+the QR code's link are the candidate's own.
 
 Standard library only: it runs in Actions, on the Mac and on the routine's cloud machine.
 """
@@ -38,7 +41,7 @@ import prepare  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 RADAR = Path("sources") / "radar"
 UA = "coffee-edition-radar/1.0"   # no address or name: these requests go to outside services
-CARDS_MIN, CARDS_MAX = 5, 17   # one to three RADAR pages
+CARDS_MIN, CARDS_MAX = 5, 17   # Fresh Ink: one to four pages
 
 HF_DAYS = 3          # Daily Papers lists read back from the day before the issue (weekends are thin)
 HF_KEEP = 30         # by upvotes
@@ -57,6 +60,9 @@ HF_MODEL = re.compile(r"https?://huggingface\.co/(?!papers/|datasets/|spaces/|bl
 MODEL_SKIP = re.compile(r"(gguf|awq|gptq|exl2|mlx|uncensor|abliterat|nsfw|lewd|porn|erotic|humaniz)", re.I)
 FULL_HF, FULL_ARXIV, FULL_TRENDING, FULL_NOMINATED = 12, 6, 6, 6   # full texts: the candidates a card is most likely to come from
 TEXT_MAX, README_MAX, POST_MAX = 20000, 8000, 8000
+# A source's tables are kept apart from its text and whole, appendix included: a card's chart is
+# drawn from them and checked against them, and the text above stops at the references.
+TABLES_MAX = 60000
 
 BLOGS = (
     ("openai", "OpenAI", "rss", "https://openai.com/news/rss.xml"),
@@ -183,17 +189,177 @@ def page_text(raw, part=None):
     return text_of(s)
 
 
+class Tables(HTMLParser):
+    """Every table of an HTML page, appendix included: its caption on a line, then one line per
+    row with the cells split by " | ", math as its LaTeX alttext. LaTeXML puts a table and its
+    caption in <figure class="ltx_table">; elsewhere a <caption> names the table."""
+
+    SKIP = {"script", "style", "svg", "noscript"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.tables, self.stack, self.skip, self.math = [], [], 0, 0
+        # LaTeXML table figures, innermost last: a figure's caption may come before or after its
+        # table, and a figure of sub-tables ((a), (b), ...) names them all with its own caption
+        self.figures = []
+        self.caption, self.in_caption, self.depth = [], 0, 0
+        self.rows, self.row, self.cell = [], None, None
+
+    def _caption(self):
+        return self.figures[-1]["caption"] if self.figures else self.caption
+
+    @staticmethod
+    def role(tag, cls):
+        """What an element is to a table. LaTeXML writes tabulars both as <table>/<tr>/<td> and as
+        spans of class ltx_tabular / ltx_tr / ltx_td; its display equations are tables too (ltx_eqn_table)."""
+        if "ltx_eqn_table" in cls:
+            return "skip"
+        if tag == "table" or re.search(r"\bltx_tabular\b", cls):
+            return "table"
+        if tag == "tr" or re.search(r"\bltx_tr\b", cls):
+            return "row"
+        if tag in ("td", "th") or re.search(r"\bltx_t[dh]\b", cls):
+            return "cell"
+        if tag == "figure" and "ltx_table" in cls:
+            return "figure"
+        if tag in ("figcaption", "caption"):
+            return "caption"
+        return None
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag in ("br", "img", "hr", "meta", "link", "input"):
+            if tag == "br" and self.cell is not None:
+                self.cell.append(" ")
+            return
+        role = None if self.skip else self.role(tag, a.get("class") or "")
+        if role in ("table", "row") and self.cell is not None:
+            role = None   # a table inside a cell is read as the cell's text
+        if role == "cell" and (self.row is None or self.cell is not None):
+            role = None
+        if role == "row" and not self.depth:
+            role = None
+        if role == "caption" and not (self.figures or self.depth):
+            role = None
+        skipping = tag in self.SKIP or role == "skip"
+        self.stack.append((tag, role, skipping))
+        self.skip += skipping
+        if tag == "math" and not self.skip:
+            text = " " + (a.get("alttext") or "") + " "
+            if self.cell is not None:
+                self.cell.append(text)
+            elif self.in_caption:
+                self._caption().append(text)
+        self.math += tag == "math"
+        if role == "figure":
+            self.figures.append({"caption": [], "pending": [], "start": len(self.tables)})
+        elif role == "caption":
+            self.in_caption += 1
+        elif role == "table":
+            self.depth += 1
+        elif role == "row":
+            self.row = []
+        elif role == "cell":
+            self.cell = []
+
+    def handle_endtag(self, tag):
+        if not any(t == tag for t, _, _ in self.stack):
+            return   # a stray end tag
+        while self.stack:
+            t, role, skipping = self.stack.pop()
+            self.skip -= skipping
+            self.math -= t == "math"
+            if role == "figure" and self.figures:
+                fig = self.figures.pop()
+                caption = " ".join("".join(fig["caption"]).split())
+                inner = self.tables[fig["start"]:]   # its sub-tables, already named "(a) ..."
+                self.tables[fig["start"]:] = [((caption + " " + c).strip(), rows) for c, rows in inner]
+                self.tables += [(caption, rows) for rows in fig["pending"]]
+            elif role == "caption" and self.in_caption:
+                self.in_caption -= 1
+            elif role == "cell" and self.cell is not None and self.row is not None:
+                self.row.append(" ".join("".join(self.cell).split()))
+                self.cell = None
+            elif role == "row" and self.row is not None:
+                if any(self.row):
+                    self.rows.append(" | ".join(self.row))
+                self.row = None
+            elif role == "table" and self.depth:
+                self.depth -= 1
+                if not self.depth and self.rows:
+                    if self.figures:
+                        self.figures[-1]["pending"].append(self.rows)
+                    else:   # a table of its own: its <caption>, if it has one
+                        self.tables.append((" ".join("".join(self.caption).split()), self.rows))
+                        self.caption = []
+                    self.rows = []
+            if t == tag:
+                break
+
+    def handle_data(self, data):
+        if self.skip or self.math:
+            return
+        if self.cell is not None:
+            self.cell.append(data)
+        elif self.in_caption:
+            self._caption().append(data)
+
+    def text(self):
+        blocks = []
+        for caption, rows in self.tables:
+            blocks.append("\n".join(([caption] if caption else []) + rows))
+        return "\n\n".join(blocks).replace("\xa0", " ")
+
+
+def tables_of(raw):
+    """The tables of an HTML page as text, TABLES_MAX at most; "" when it has none."""
+    s = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw
+    p = Tables()
+    try:
+        p.feed(s)
+        p.close()
+    except Exception:  # noqa: BLE001  a page the parser chokes on keeps its text and simply has no tables
+        return ""
+    return p.text()[:TABLES_MAX]
+
+
+MD_ROW = re.compile(r"^\s*\|.*\|\s*$")
+
+
+def md_tables(text):
+    """The tables of a Markdown text (a README, a model card): each with the heading or line just
+    above it and a caption line just below it ("*Table 1: ...*"), TABLES_MAX at most."""
+    lines = (text or "").split("\n")
+    blocks, i = [], 0
+    while i < len(lines):
+        if not MD_ROW.match(lines[i]):
+            i += 1
+            continue
+        start = i
+        while i < len(lines) and MD_ROW.match(lines[i]):
+            i += 1
+        rows = [ln.strip() for ln in lines[start:i] if not re.fullmatch(r"[\s|:\-]+", ln)]
+        above = next((ln.strip() for ln in reversed(lines[max(0, start - 3):start]) if ln.strip()), "")
+        below = next((ln.strip() for ln in lines[i:i + 2] if ln.strip()), "")
+        caption = [above] if above else []
+        after = [below] if re.match(r"^[*_]*(table|tablo)\b", below, re.I) else []
+        if len(rows) >= 2:
+            blocks.append("\n".join(caption + rows + after))
+    return "\n\n".join(blocks)[:TABLES_MAX]
+
+
 def arxiv_text(arxiv_id):
-    """The paper's full text from arxiv.org/html (LaTeXML), up to the references; None when there is no HTML version."""
+    """(text, tables) of a paper from arxiv.org/html (LaTeXML): its text up to the references, and
+    all of its tables, appendix included; (None, None) when there is no HTML version."""
     try:
         raw = fetch("https://arxiv.org/html/" + arxiv_id, tries=2)
     except RuntimeError:
-        return None
+        return None, None
     text = page_text(raw, part="whole")
     start = text.find("Abstract")
     text = text[start:] if 0 <= start < 4000 else text
     end = re.search(r"\n(References|Bibliography)\n", text)
-    return (text[:end.start()] if end else text)[:TEXT_MAX]
+    return (text[:end.start()] if end else text)[:TEXT_MAX], tables_of(raw) or None
 
 
 # ---- the sources ---------------------------------------------------------------------------
@@ -289,10 +455,11 @@ def github_trending():
 
 
 def readme(repo, token=None):
+    """A repository's whole README, or None; its callers keep README_MAX of it as text and read its tables from all of it."""
     for url, accept in (("https://raw.githubusercontent.com/%s/HEAD/README.md" % repo, None),
                         ("https://api.github.com/repos/%s/readme" % repo, "application/vnd.github.raw")):
         try:
-            return fetch(url, accept=accept, tries=2, token=token if "api.github" in url else None).decode("utf-8", "replace")[:README_MAX]
+            return fetch(url, accept=accept, tries=2, token=token if "api.github" in url else None).decode("utf-8", "replace")
         except RuntimeError:
             continue
     return None
@@ -357,10 +524,11 @@ def blog_posts(day):
                 if taken >= LAB_CAP:
                     break
                 taken += 1
-                text = None
+                text = tables = None
                 try:
                     body = fetch(link, tries=1 if blocked.get(lab) else 2)
                     text = page_text(body)[:POST_MAX] or None
+                    tables = tables_of(body) or None
                     if not title:
                         t = re.search(r"<title>(.*?)</title>", body.decode("utf-8", "replace"), re.S)
                         title = html.unescape(t.group(1)).split("|")[0].split(" \\ ")[0].strip() if t else link
@@ -370,7 +538,7 @@ def blog_posts(day):
                 slug = re.sub(r"[^a-z0-9-]+", "-", link.rstrip("/").rsplit("/", 1)[-1].lower())[:60]
                 out.append({"id": "blog:%s:%s" % (key, slug), "kind": "post", "from": [key], "lab": lab,
                             "title": title or link, "url": link, "code": None, "published": when.isoformat(),
-                            "abstract": desc or (text or "")[:600], "_text": text})
+                            "abstract": desc or (text or "")[:600], "_text": text, "_tables": tables})
         except (RuntimeError, ET.ParseError) as e:
             errors.append("%s: %s" % (lab, e))
     for lab, n in blocked.items():   # the post stays a candidate with its feed summary
@@ -441,6 +609,7 @@ def hf_models(day):
             "url": "https://huggingface.co/" + mid, "code": "https://huggingface.co/" + mid,
             "likes": m.get("likes"), "downloads": m.get("downloads"), "task": m.get("pipeline_tag"),
             "published": (m.get("createdAt") or "")[:10], "abstract": first or body[:700], "_text": body[:README_MAX],
+            "_tables": md_tables(body) or None,
         })
         if len(out) >= MODELS_KEEP:
             break
@@ -526,7 +695,7 @@ def model_candidate(mid, sig):
     return dict({"id": "model:" + mid, "kind": "model", "title": mid, "url": "https://huggingface.co/" + mid,
                  "code": "https://huggingface.co/" + mid, "likes": m.get("likes"), "downloads": m.get("downloads"),
                  "task": m.get("pipeline_tag"), "published": (m.get("createdAt") or "")[:10],
-                 "abstract": first or body[:700], "_text": body[:README_MAX]}, **sig)
+                 "abstract": first or body[:700], "_text": body[:README_MAX], "_tables": md_tables(body) or None}, **sig)
 
 
 def nominated(stories, links, have, token=None):
@@ -585,7 +754,8 @@ def nominated(stories, links, have, token=None):
         if not text or not AI_TITLE.search(text[:2000]):
             continue   # no README, or a repository that is not about AI (a template, a general library)
         out.append(dict({"id": cid, "kind": "repo", "title": ref, "url": "https://github.com/" + ref,
-                         "code": "https://github.com/" + ref, "abstract": model_card(text)[1] or text[:600], "_text": text}, **sig))
+                         "code": "https://github.com/" + ref, "abstract": model_card(text)[1] or text[:600],
+                         "_text": text[:README_MAX], "_tables": md_tables(text) or None}, **sig))
     for mid, sig in models.items():
         cid = "model:" + mid
         if cid in have:
@@ -599,11 +769,12 @@ def nominated(stories, links, have, token=None):
         host = re.sub(r"^www\.", "", url.split("/")[2].lower())
         slug = re.sub(r"[^a-z0-9.-]+", "-", "/".join(url.split("/")[3:]).lower()).strip("-")[:60] or "home"
         try:
-            text = page_text(fetch(url, tries=2))[:POST_MAX]
+            raw = fetch(url, tries=2)
         except RuntimeError:
             continue
+        text = page_text(raw)[:POST_MAX]
         out.append(dict({"id": "web:%s:%s" % (host, slug), "kind": "post", "from": ["hn"], "url": url, "code": None,
-                         "abstract": text[:600], "_text": text}, **sig))
+                         "abstract": text[:600], "_text": text, "_tables": tables_of(raw) or None}, **sig))
     from_hn = sorted((c for c in out if "hn" in c["from"]), key=lambda c: -(c.get("hn_points") or 0))[:HN_KEEP]
     from_letters = [c for c in out if "hn" not in c["from"]]
     from_letters.sort(key=lambda c: c["kind"] != "paper")
@@ -653,8 +824,24 @@ def default_day(root):
     return next_issue.issue_date(now, cfg.get("edition_print_time") or next_issue.DEFAULT_PRINT_TIME, prepare.zone(cfg))
 
 
-def safe(cid):
-    return re.sub(r"[^A-Za-z0-9.-]+", "-", cid).strip("-") + ".txt"
+def safe(cid, suffix=".txt"):
+    return re.sub(r"[^A-Za-z0-9.-]+", "-", cid).strip("-") + suffix
+
+
+def store(candidates, texts):
+    """Writes each candidate's text and tables under `texts` and records their paths in the
+    candidate ("text", "tables"); a rerun of the same night leaves no stale file behind."""
+    for c in candidates:
+        for key, suffix in (("text", ".txt"), ("tables", ".tables.txt")):
+            body = c.pop("_" + key, None)
+            c[key] = None
+            if body:
+                (texts / safe(c["id"], suffix)).write_text(body + "\n", encoding="utf-8")
+                c[key] = "texts/" + safe(c["id"], suffix)
+    kept = {c[k] for c in candidates for k in ("text", "tables")}
+    for old in texts.iterdir():
+        if "texts/" + old.name not in kept:
+            old.unlink()
 
 
 def collect(day, root=ROOT, token=None, log=print):
@@ -713,23 +900,19 @@ def collect(day, root=ROOT, token=None, log=print):
     # full texts, politely (arXiv asks for no more than one request a second)
     papers_nominated = [c for c in groups["nominated"] if c["kind"] == "paper"]
     for c in groups["hf"][:FULL_HF] + groups["arxiv"][:FULL_ARXIV] + groups["trending"][:FULL_TRENDING] + papers_nominated[:FULL_NOMINATED]:
-        text = arxiv_text(c["id"].split(":", 1)[1])
+        text, tables = arxiv_text(c["id"].split(":", 1)[1])
         time.sleep(1)
         if text:
             c["_text"] = text
+        if tables:
+            c["_tables"] = tables
     for c in groups["github"]:
-        c["_text"] = readme(c["title"], token)
+        full = readme(c["title"], token)
+        c["_text"] = full[:README_MAX] if full else None
+        c["_tables"] = md_tables(full) or None
     candidates = (groups["hf"] + groups["arxiv"] + groups["trending"] + groups["models"] + groups["github"]
                   + groups["nominated"] + groups["blogs"])
-    for c in candidates:
-        text = c.pop("_text", None)
-        c["text"] = None
-        if text:
-            (texts / safe(c["id"])).write_text(text + "\n", encoding="utf-8")
-            c["text"] = "texts/" + safe(c["id"])
-    for old in texts.iterdir():   # a rerun of the same night leaves no stale text behind
-        if "texts/" + old.name not in {c["text"] for c in candidates}:
-            old.unlink()
+    store(candidates, texts)
 
     index = {
         "version": 1, "date": day.isoformat(),
@@ -743,6 +926,46 @@ def collect(day, root=ROOT, token=None, log=print):
     for e in errors:
         log("  error: " + e)
     return index
+
+
+def tables_for(c, token=None):
+    """A candidate's tables, read again from its source: the paper's arXiv HTML, a model card or
+    README, a post's page; None when it has none or the source does not answer."""
+    kind, ref = c["id"].split(":", 1)
+    try:
+        if kind == "arxiv":
+            return arxiv_text(ref)[1]
+        if kind == "model":
+            return md_tables(fetch("https://huggingface.co/%s/raw/main/README.md" % ref, tries=2).decode("utf-8", "replace")) or None
+        if kind == "github":
+            return md_tables(readme(ref, token) or "") or None
+        if c.get("url"):
+            return tables_of(fetch(c["url"], tries=2)) or None
+    except RuntimeError:
+        return None
+    return None
+
+
+def backfill_tables(day, root=ROOT, token=None, log=print):
+    """Adds the tables of an index collected before tables were kept (before 23 October 2026),
+    for the candidates that have a text: nothing else in the index changes. Returns how many it added."""
+    out_dir = root / RADAR / day.isoformat()
+    path = out_dir / "index.json"
+    index = json.loads(path.read_text(encoding="utf-8"))
+    added = 0
+    for c in index["candidates"]:
+        if c.get("tables") or not c.get("text"):
+            continue
+        tables = tables_for(c, token)
+        if c["id"].startswith("arxiv:"):
+            time.sleep(1)   # arXiv asks for no more than one request a second
+        if tables:
+            (out_dir / "texts" / safe(c["id"], ".tables.txt")).write_text(tables + "\n", encoding="utf-8")
+            c["tables"] = "texts/" + safe(c["id"], ".tables.txt")
+            added += 1
+    path.write_text(json.dumps(index, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    log("%s: tables for %d of %d candidates with text" % (day, added, sum(1 for c in index["candidates"] if c.get("text"))))
+    return added
 
 
 # ---- check ---------------------------------------------------------------------------------
@@ -773,17 +996,57 @@ def flat(s):
 
 
 def source_text(index_dir, c):
-    """What a card about candidate `c` may rest on: its collected facts (title, signals, dates) and its texts."""
+    """What a card about candidate `c` may rest on: its collected facts (title, signals, dates), its
+    texts and its tables (an index collected before tables were kept has none)."""
     facts = []
     for k, v in c.items():
-        if k in ("abstract", "text"):
+        if k in ("abstract", "text", "tables"):
             continue
         facts += [str(x) for x in v] if isinstance(v, list) else [str(v)] if v is not None else []
     meta = " ".join(facts)
     body = c.get("abstract") or ""
-    if c.get("text"):
-        body += "\n" + (index_dir / c["text"]).read_text(encoding="utf-8")
+    for key in ("text", "tables"):
+        if c.get(key):
+            body += "\n" + (index_dir / c[key]).read_text(encoding="utf-8")
     return meta, body
+
+
+# The numbers of a chart that are drawing, not data: how many decimals it prints, which rows it
+# stresses, where its axis starts and ends.
+CHART_LAYOUT = {"decimals", "accent", "min", "max", "ticks", "log", "kind"}
+
+
+def chart_numbers(chart):
+    """(numbers written in the chart's text, numeric data values) of a card's chart."""
+    words, values = set(), []
+    def walk(v, key=None):
+        if key in CHART_LAYOUT:
+            return
+        if isinstance(v, bool):
+            return
+        if isinstance(v, (int, float)):
+            values.append(v)
+        elif isinstance(v, str):
+            words.update(NUMBER.findall(v))
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                walk(x, k)
+    walk(chart)
+    return words, values
+
+
+def as_values(have):
+    """The source's numbers as values, so a chart's 95.0 is the table's 95.00."""
+    out = set()
+    for n in have:
+        try:
+            out.add(round(float(n), 9))
+        except ValueError:
+            continue
+    return out
 
 
 def check(issue, root=ROOT, name=None):
@@ -833,7 +1096,7 @@ def check(issue, root=ROOT, name=None):
         meta, body = source_text(index_dir, c)
         everything = meta + "\n" + body
         have = numbers(everything)
-        fields = [card.get(k) for k in ("name", "what", "how", "when", "source")]
+        fields = [card.get(k) for k in ("name", "headline", "what", "how", "when", "source")]
         num = card.get("number") or {}
         fields += [num.get("value"), num.get("says")]
         for n in sorted({n for f in fields if f for n in NUMBER.findall(str(f))}):
@@ -851,11 +1114,32 @@ def check(issue, root=ROOT, name=None):
             errors.append("%s.number.quote: not found word for word in the candidate's text: %r" % (at, quote[:80]))
         elif not value or not all(spellings(v) & numbers(quote) for v in value):
             errors.append("%s.number.value: %r is not in its quote" % (at, num.get("value")))
+        bare = lambda u: re.sub(r"^https?://(www\.)?", "", str(u or "")).rstrip("/").lower()  # noqa: E731
         code = (card.get("code") or "").strip()
         if code:
-            bare = lambda u: re.sub(r"^https?://", "", str(u or "")).rstrip("/").lower()  # noqa: E731
             if bare(code) != bare(c.get("code")) and bare(code) not in flat(body).lower():
                 errors.append("%s.code: %s is not the candidate's code link (%s)" % (at, code, c.get("code")))
+        # the QR code's address: the work's own page or its code, nothing else
+        link = (card.get("link") or "").strip()
+        if link and bare(link) not in {bare(c.get("url")), bare(c.get("code"))}:
+            errors.append("%s.link: %s is neither the candidate's page (%s) nor its code (%s)" % (at, link, c.get("url"), c.get("code")))
+        if link and not link.startswith("https://"):
+            errors.append("%s.link: a full https:// address, for the QR code" % at)
+        # a chart is drawn from the source's own table: every value and every number in its words stands in the text or the tables
+        chart = card.get("chart")
+        if chart is not None:
+            if not isinstance(chart, dict):
+                errors.append("%s.chart: an object (see README.md, Fresh Ink)" % at)
+            else:
+                words, values = chart_numbers(chart)
+                for n in sorted(words):
+                    if not spellings(n) & have:
+                        errors.append("%s.chart (%s): the number %s is not in the candidate's text or tables" % (at, card["id"], n))
+                known = as_values(have)
+                for v in sorted(set(values)):
+                    # as the table writes it, or in another unit by a power of ten (1.55 s as 1550 ms, 0.87 as 87%)
+                    if not any(round(float(v) * 10 ** k, 9) in known for k in range(-3, 4)):
+                        errors.append("%s.chart (%s): the value %s is not in the candidate's text or tables (copy it as the table writes it)" % (at, card["id"], v))
     # the headline sums up the cards: every number in it comes from one of them
     pool = set()
     for card in items:
@@ -894,7 +1178,12 @@ def main(argv=None):
     c.add_argument("--date", help="the issue date, YYYY-MM-DD (default: the morning the next routine run writes for)")
     k = sub.add_parser("check", help="check an issue's radar part against its night's index")
     k.add_argument("file")
+    t = sub.add_parser("tables", help="add the tables to an index collected before tables were kept")
+    t.add_argument("--date", required=True, help="the index date, YYYY-MM-DD")
     args = ap.parse_args(argv)
+    if args.cmd == "tables":
+        backfill_tables(datetime.date.fromisoformat(args.date), ROOT, token=os.environ.get("GITHUB_TOKEN"))
+        return 0
     if args.cmd == "collect":
         day = datetime.date.fromisoformat(args.date) if args.date else default_day(ROOT)
         cfg = prepare.load_settings(ROOT)

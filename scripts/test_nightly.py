@@ -7,7 +7,7 @@ rule is tried in a scratch git repository: the issue date around the print time,
 the daylight saving switches (UTC, Europe/London, America/New_York), the frontmatter reader,
 which notes count and in what order, pictures next to notes (committed or not), the issue
 number with dry-run nights in between, "already prepared", "no notes", verify, prepare's guards,
-a reprint's print day and the print log's table. Last, the kit's own notes/ folder must be readable and give a pick.
+a reprint's print day and the print log's table; Fresh Ink's tables and its chart check. Last, the kit's own notes/ folder must be readable and give a pick.
 """
 import datetime
 import json
@@ -324,6 +324,94 @@ def check_print_date(tmp):
     print("print date ok: a reprint keeps its date in the masthead and prints on its print day, at that day's local time")
 
 
+def check_radar_tables(tmp):
+    """Tables are kept apart from a source's text, appendix included, and a card's chart, headline
+    and QR link are checked against them: LaTeXML tables in both spellings (<table> and span
+    tabulars), captions before or after, sub-tables, math as alttext; Markdown tables of a card."""
+    import copy
+    latexml = (
+        '<html><body><article><p>Intro 1.5 and <math alttext="x"><mi>x</mi></math>.</p>'
+        '<table class="ltx_equation ltx_eqn_table"><tr><td>a=b+7</td></tr></table>'
+        '<figure class="ltx_table"><figcaption>Table 1: Main results.</figcaption>'
+        '<table class="ltx_tabular"><tr><th>Method</th><th>Acc</th></tr><tr><td>Ours</td><td>95.5</td></tr></table></figure>'
+        '<figure class="ltx_table"><span class="ltx_tabular"><span class="ltx_tr"><span class="ltx_td">Model</span><span class="ltx_td">DAQ (%)</span></span>'
+        '<span class="ltx_tr"><span class="ltx_td">Grok</span><span class="ltx_td"><math alttext="86.55\\,{\\pm\\,12.97}"><mn>1</mn></math></span></span></span>'
+        '<figcaption>Table 2: Under the harness.</figcaption></figure>'
+        '<figure class="ltx_table"><figcaption>Table 11: Success by robots.</figcaption>'
+        '<figure class="ltx_table"><figcaption>(e) Packing</figcaption><table><tr><td>Avg. (%)</td><td>79.17</td><td>98.33</td></tr></table></figure></figure>'
+        '<section class="ltx_appendix"><figure class="ltx_table"><figcaption>Table 12: Ablation.</figcaption>'
+        '<table><tr><td>w/o FR</td><td>64.17</td></tr></table></figure></section>'
+        '<script>var t = "<table><tr><td>99</td></tr></table>";</script></article></body></html>')
+    t = radar.tables_of(latexml)
+    assert "Table 1: Main results.\nMethod | Acc\nOurs | 95.5" in t, t
+    assert "Table 2: Under the harness.\nModel | DAQ (%)\nGrok | 86.55\\,{\\pm\\,12.97}" in t, t
+    assert "Table 11: Success by robots. (e) Packing\nAvg. (%) | 79.17 | 98.33" in t, t
+    assert "Table 12: Ablation.\nw/o FR | 64.17" in t, "the appendix's tables are kept too"
+    assert "a=b+7" not in t and "99" not in t, "display equations and scripts are not tables"
+    assert radar.tables_of("<p>no tables here</p>") == ""
+    card = ("# Model\n\nIntro.\n\n### Final Results\n\n| Writer | Mem0 | Avg. |\n| :--- | ---: | ---: |\n"
+            "| **Ours** | **54.02** | **55.49** |\n| Base | 40.20 | 47.66 |\n\n*Table 1: Means on subsamples.*\n\nText | not a table\n")
+    md = radar.md_tables(card)
+    assert md.startswith("### Final Results\n| Writer | Mem0 | Avg. |") and "| **Ours** | **54.02** | **55.49** |" in md and md.endswith("*Table 1: Means on subsamples.*"), md
+    assert ":---" not in md and "not a table" not in md
+    # store: text and tables side by side, stale files of an earlier run removed
+    texts = Path(tmp) / "store" / "texts"
+    texts.mkdir(parents=True)
+    (texts / "old.txt").write_text("stale")
+    cands = [{"id": "arxiv:2610.1", "_text": "Body.", "_tables": "Table 1\nA | 1"}, {"id": "github:a/b", "_text": None, "_tables": None}]
+    radar.store(cands, texts)
+    assert cands[0]["text"] == "texts/arxiv-2610.1.txt" and cands[0]["tables"] == "texts/arxiv-2610.1.tables.txt", cands
+    assert cands[1]["text"] is None and cands[1]["tables"] is None and "_text" not in cands[0]
+    assert sorted(p.name for p in texts.iterdir()) == ["arxiv-2610.1.tables.txt", "arxiv-2610.1.txt"]
+    # the check: a chart's values and words, the headline and the QR link
+    root, good = radar_root(tmp / "tables")
+    night = root / "sources" / "radar" / "2026-10-18"
+    index = json.loads((night / "index.json").read_text())
+    c0 = index["candidates"][0]
+    (night / "texts" / radar.safe(c0["id"], ".tables.txt")).write_text(
+        "Table 11: Success by robots. (e) Packing\nrobots | 4 | 16 | 96\nAvg. (%) | 50.83 | 86.67 | 98.33\n"
+        "Table 3: Latency\nOurs | 112 ms\nOther | \\approx 1.55 s\n")
+    c0["tables"] = "texts/" + radar.safe(c0["id"], ".tables.txt")
+    (night / "index.json").write_text(json.dumps(index))
+    card0 = good["radar"]["items"][0]
+    card0.update(headline="Method1 reaches 98.33% with 96 robots", link="https://arxiv.org/abs/2610.10001",
+                 chart={"kind": "line", "title": "Success, % of tries", "what": "From 4 to 96 robots.", "table": "Table 11e",
+                        "x": {"values": [4, 16, 96], "log": True}, "y": {"min": 0, "max": 100, "ticks": [0, 50, 100]},
+                        "series": [{"name": "fleet", "points": [[4, 50.83], [16, 86.67], [96, 98.33]]}]})
+    good["radar"]["items"][1]["link"] = "https://github.com/lab/method2"
+    assert radar.check(good, root)[0] == [], radar.check(good, root)[0]
+    unit = copy.deepcopy(good)
+    unit["radar"]["items"][0]["chart"] = {"kind": "bars", "title": "Latency", "what": "Shorter is better.", "table": "Table 3",
+                                          "rows": [["Ours", 112], ["Other", 1550]], "labels": ["112 ms", "≈1.55 s"]}
+    assert radar.check(unit, root)[0] == [], "1550 ms is the table's 1.55 s: a value may change its unit by a power of ten"
+
+    def errs(change):
+        issue = copy.deepcopy(good)
+        change(issue["radar"]["items"])
+        return radar.check(issue, root)[0]
+    cases = [
+        (lambda it: it[0]["chart"]["series"][0]["points"].append([64, 95.0]), "the value 95.0 is not in"),
+        (lambda it: it[0]["chart"]["series"][0]["points"][1].__setitem__(1, 87.0), "the value 87.0 is not in"),
+        (lambda it: it[0]["chart"].__setitem__("what", "From 4 to 128 robots."), "the number 128 is not in"),
+        (lambda it: it[0].__setitem__("headline", "Method1 reaches 99% with 96 robots"), "the number 99 is not in"),
+        (lambda it: it[0].__setitem__("link", "https://example.com/paper"), "is neither the candidate's page"),
+        (lambda it: it[1].__setitem__("link", "github.com/lab/method2"), "a full https:// address"),
+        (lambda it: it[0].__setitem__("chart", "a chart"), "an object"),
+    ]
+    for change, want in cases:
+        found = errs(change)
+        assert any(want in e for e in found), (want, found)
+    # an index from before tables were kept still checks
+    del index["candidates"][0]["tables"]
+    (night / "index.json").write_text(json.dumps(index))
+    plain = copy.deepcopy(good)
+    del plain["radar"]["items"][0]["chart"]
+    plain["radar"]["items"][0]["headline"] = "Method1 gains 1.5 points"
+    assert radar.check(plain, root)[0] == [], radar.check(plain, root)[0]
+    print("radar tables ok: every table kept, appendix too (both LaTeXML spellings, captions before or after, sub-tables, "
+          "math), Markdown tables of model cards; a chart's values and words, the headline and the QR link come from the source")
+
+
 def check_radar(tmp):
     """RADAR: every card is one of the night's candidates, never printed before, and every number
     in it stands in the candidate's text; the sources' parsers read canned pages without a network."""
@@ -485,6 +573,7 @@ def main():
         check_verify(tmp)
         check_log_table(tmp)
         check_radar(tmp)
+        check_radar_tables(tmp)
         check_print_date(tmp)
     check_radar_sources()
     check_prepare_guards()
