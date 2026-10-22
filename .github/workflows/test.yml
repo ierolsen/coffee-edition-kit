@@ -2,7 +2,8 @@ name: test
 
 # Lays out the edition fixtures on the same kind of runner that builds the real
 # issues: the sample issue must stay on two pages, long issues must gain pages in
-# the right place, and broken issues must be refused. Also checks the Pico's clock
+# the right place, broken issues must be refused, and every Fresh Ink QR code must
+# scan to its card's link. Also checks the Pico's clock
 # arithmetic and printer search, and the nightly writer's rules (which note, which
 # date, no late or second paper). Runs when code, notes or settings change on main,
 # and on pull requests.
@@ -33,8 +34,15 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install the QR reader (test.mjs scans every printed Fresh Ink QR code)
+        run: |
+          python3 -m venv /tmp/qr
+          /tmp/qr/bin/pip install -q zxing-cpp pillow
+
       - name: Run the fixtures
         run: node edition/test.mjs
+        env:
+          QR_PYTHON: /tmp/qr/bin/python
 
       - name: Check the Pico's clock and schedule arithmetic
         run: python3 pico/test_clock.py

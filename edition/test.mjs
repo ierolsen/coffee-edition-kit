@@ -72,6 +72,28 @@ function build(name, issue, extra = []) {
 }
 
 const pdfText = (name, page) => execFileSync("pdftotext", ["-f", String(page), "-l", String(page), join(OUT, `${name}.pdf`), "-"], { encoding: "utf8" });
+const FRESH = () => JSON.parse(readFileSync(join(HERE, "fixtures", "fresh-ink.edition.json"), "utf8"));
+const OLD_RADAR = () => JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
+// pdftotext keeps letter-spaced labels apart (I N S I D E) and breaks lines where the page does
+const squeeze = (s) => s.replace(/\s+/g, "");
+
+// The PDF's pages at 300 dpi through a QR reader (edition/qrdecode.py, zxing-cpp): every code the
+// layout drew must scan to its card's link. null when the reader is not installed (QR_PYTHON picks the Python).
+function qrScans(name, want) {
+  const dir = mkdtempSync(join(tmpdir(), "coffee-qr-"));
+  try {
+    execFileSync("pdftoppm", ["-r", "300", "-gray", "-png", join(OUT, name + ".pdf"), join(dir, "p")]);
+    const pngs = readdirSync(dir).filter((f) => f.endsWith(".png")).map((f) => join(dir, f));
+    const run = spawnSync(process.env.QR_PYTHON || "python3", [join(HERE, "qrdecode.py"), ...pngs], { encoding: "utf8" });
+    if (run.status === 2) return null;
+    if (run.status !== 0) return { ok: false, why: "the reader failed: " + run.stderr.trim().split("\n").pop() };
+    const got = Object.values(JSON.parse(run.stdout)).flat();
+    const missing = want.filter((u) => !got.includes(u));
+    return { ok: got.length === want.length && !missing.length, why: got.length + " of " + want.length + " scanned" + (missing.length ? ", not found: " + missing.join(", ") : "") };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
 
 const cases = [
   ["the sample issue fits on two pages", "raven", () => clone(), [], (r) => [
@@ -162,43 +184,91 @@ const cases = [
     [r.code === 1 && !r.pdf, "exit code 1, no PDF"],
     [r.report.errors.filter((e) => /a picture next to a note/.test(e)).length === 2, "both pictures are named: " + r.report.errors.join("; ")],
   ]],
-  ["a RADAR page holds five cards and the list of the others on one page", "radar",
-    () => JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8")), [], (r) => [
+  ["Fresh Ink: sixteen cards, nine charts and four briefs take four pages, a QR code on each", "fresh-ink", FRESH, [], (r) => {
+    const p1 = r.pdf ? pdfText("fresh-ink", 1) : "";
+    const qr = r.pdf ? qrScans("fresh-ink", r.report.layout.qr) : null;
+    return [
+      [r.code === 0, "builds"],
+      [kinds(r) === "fresh,fresh,fresh,fresh", "four Fresh Ink pages: " + kinds(r)],
+      [r.report.layout.charts === 9, "nine charts: " + r.report.layout.charts],
+      [r.report.layout.qr.length === 16 && new Set(r.report.layout.qr).size === 16, "a QR code for each of the sixteen cards: " + r.report.layout.qr.length],
+      [r.report.layout.pages[0].footer === "Continued on page 2 · 1/4", "page 1 footer: " + r.report.layout.pages[0].footer],
+      [["96 Robots Learn From Each Other", "FRESH INK", "IN BRIEF", "INSIDE", "927 works scanned"].every((w) => squeeze(p1).includes(squeeze(w))), "the front page has its headline, flag, IN BRIEF and INSIDE"],
+      [qr === null || qr.ok, qr === null ? "QR scan skipped (no zxing-cpp)" : "every printed QR code scans to its card's link: " + qr.why],
+    ];
+  }],
+  ["Fresh Ink prints another language's labels", "fresh-ink-tr", FRESH, ["--labels", join(HERE, "fixtures", "labels-tr.json")], (r) => {
+    const p1 = r.pdf ? pdfText("fresh-ink-tr", 1) : "";
+    return [
+      [r.code === 0, "builds"],
+      [["KISA KISA", "İÇERİDE", "gecenin yeni AI yöntemleri", "Bu sayı için 927 çalışma tarandı"].every((w) => squeeze(p1).includes(squeeze(w))), "the front page labels are Turkish"],
+    ];
+  }],
+  ["an old RADAR file (no headlines, briefs or charts) still prints as Fresh Ink", "radar", OLD_RADAR, [], (r) => [
     [r.code === 0, "builds"],
-    [kinds(r) === "radar", "one RADAR page: " + kinds(r)],
-    [(r.report.layout.radar_free_px || []).length === 6 && r.report.layout.radar_free_px.every((px) => px >= 0), "six cells, each with room left: " + r.report.layout.radar_free_px],
+    [/^fresh(,fresh)?$/.test(kinds(r)), "one or two Fresh Ink pages: " + kinds(r)],
+    [r.report.layout.qr.length === 5, "a QR code on each of the five cards: " + r.report.layout.qr.length],
   ]],
-  ["the RADAR page follows the issue and does not count against its four pages", "radar-issue", () => {
+  ["Fresh Ink follows an issue on pages of its own, under a running head", "radar-issue", () => {
     const d = clone();
-    d.radar = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8")).radar;
+    d.radar = OLD_RADAR().radar;
     return d;
   }, [], (r) => [
     [r.code === 0, "builds"],
-    [kinds(r) === "front,results,radar", "pages are front, results, radar: " + kinds(r)],
+    [/^front,results,fresh(,fresh)?$/.test(kinds(r)), "the issue's pages, then Fresh Ink: " + kinds(r)],
   ]],
-  ["eleven RADAR cards take two pages, seventeen three, the second and third without the head", "radar-17", () => {
-    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
-    const five = d.radar.items;
-    d.radar.items = [...five, ...five, ...five, five[0], five[1]].map((c, i) => ({ ...c, id: "arxiv:2610." + String(i).padStart(5, "0") }));
+  ["five Fresh Ink pages are refused, with what to do", "fresh-5", () => {
+    const d = FRESH();
+    d.radar.items.forEach((c) => delete c.brief);
+    return d;
+  }, [], (r) => refused(r, /Fresh Ink runs to \d pages; at most 4: mark more cards "brief"/)],
+  ["more than four briefs are refused, and a brief has no chart", "fresh-briefs", () => {
+    const d = FRESH();
+    d.radar.items[8].brief = true;
+    d.radar.items[0].brief = true;
     return d;
   }, [], (r) => [
-    [r.code === 0, "builds"],
-    [kinds(r) === "radar,radar,radar", "three RADAR pages: " + kinds(r)],
-    [(r.report.layout.radar_free_px || []).length === 18, "eighteen cells: " + (r.report.layout.radar_free_px || []).length],
+    ...refused(r, /6 cards are "brief"; IN BRIEF holds 4/),
+    [r.report.errors.some((e) => /radar\.items\[0\]\.chart: a brief has no room for a chart/.test(e)), "the lead's chart is named"],
   ]],
-  ["eighteen RADAR cards are refused", "radar-18", () => {
-    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
+  ["a chart whose labels leave no room for its bars is refused", "fresh-chart-labels", () => {
+    const d = FRESH();
+    d.radar.items[2].chart.sub = d.radar.items[2].chart.sub.map((x) => x + " with a data-center grade cooling rack");
+    return d;
+  }, [], (r) => refused(r, /radar\.items\[2\]\.chart: the labels leave the bars less than 70 px/)],
+  ["a malformed chart is refused before layout", "fresh-chart-bad", () => {
+    const d = FRESH();
+    d.radar.items[0].chart.kind = "pie";
+    d.radar.items[1].chart.rows[0] = ["PAR", "high", 95.5];
+    d.radar.items[3].chart.series[0].points.push(["extreme", 70]);
+    return d;
+  }, [], (r) => [
+    ...refused(r, /radar\.items\[0\]\.chart\.kind: "bars", "groups" or "line"/),
+    [r.report.errors.some((e) => /radar\.items\[1\]\.chart\.rows: 2 to 8 rows/.test(e)), "the bad row is named"],
+    [r.report.errors.some((e) => /radar\.items\[3\]\.chart\.series\[0\]\.points\[4\]/.test(e)), "the point off the axis is named"],
+  ]],
+  ["a blog card without its address is refused, the QR code needs it", "fresh-link", () => {
+    const d = FRESH();
+    delete d.radar.items[8].link;
+    d.radar.items[9].link = "github.com/PKU-VaLuE-Lab/OmniReasoning";
+    return d;
+  }, [], (r) => [
+    ...refused(r, /radar\.items\[8\]\.link: a blog or web card needs its page's address/),
+    [r.report.errors.some((e) => /radar\.items\[9\]\.link: the full https:\/\/ address/.test(e)), "a link without https:// is named"],
+  ]],
+  ["a story too tall for an empty column is refused, naming it", "fresh-long", () => {
+    const d = FRESH();
+    d.radar.items[5].how = Array(20).fill(d.radar.items[5].how).join(" ");
+    return d;
+  }, [], (r) => refused(r, /Fresh Ink: radar\.items\[5\] does not fit in an empty column: shorten it/)],
+  ["eighteen cards are refused", "radar-18", () => {
+    const d = OLD_RADAR();
     const five = d.radar.items;
     d.radar.items = [...five, ...five, ...five, five[0], five[1], five[2]];
     return d;
   }, [], (r) => refused(r, /radar\.items: 5 to 17 cards/)],
-  ["a RADAR card that outgrows its cell is refused, with the lines to cut", "radar-long", () => {
-    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
-    d.radar.items[1].how += " " + d.radar.items[1].how + " " + d.radar.items[1].how;
-    return d;
-  }, [], (r) => refused(r, /RADAR pages do not fit: card 2 by \d+ lines?/)],
-  ["a RADAR page needs five cards with a sourced number each", "radar-short", () => {
-    const d = JSON.parse(readFileSync(join(HERE, "fixtures", "radar.edition.json"), "utf8"));
+  ["a Fresh Ink issue needs five cards with a sourced number each", "radar-short", () => {
+    const d = OLD_RADAR();
     d.radar.items.pop();
     delete d.radar.items[0].number.quote;
     return d;

@@ -189,36 +189,82 @@ td.delta { font-weight: 600; color: var(--accent); }
 /* a picture keeps its caption in the same column */
 .unit.keep { break-inside: avoid; }
 
-/* RADAR: five new methods on a page after the issue, a grid of two rows of three: five cards
-   and the list of the others. A card fills its cell and never breaks; the number callout is
-   the one figure to remember, the code link and the source sit at the foot of the card. */
-.radar-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: 9px; border-bottom: 1px solid var(--ink); }
-.radar-head h2 { font-size: 24px; line-height: 28px; letter-spacing: -0.01em; text-wrap: balance; }
-.radar-head .standfirst { font-size: 13.5px; line-height: 18px; }
-.radar-grid { column-count: auto; column-rule: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr)); column-gap: 20px; row-gap: 12px; }
-.radar-grid > .flow-end { display: none; }
-.radar-grid > .unit { position: relative; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-.radar-grid > .unit:nth-child(3n+2)::before, .radar-grid > .unit:nth-child(3n+3)::before {
-  content: ""; position: absolute; left: -10.5px; top: 0; bottom: 0; border-left: 1px solid var(--rule-light); }
-.radar-grid > .unit:nth-child(-n+3) { border-bottom: 1px solid var(--rule-light); padding-bottom: 8px; }
-.card-top { display: flex; align-items: baseline; gap: 7px; font-family: var(--mono); font-size: 12px; line-height: 16px; }
-.card-n { flex: 0 0 auto; min-width: 16px; text-align: center; font-weight: 500; color: var(--paper); background: var(--accent); }
-.card-area { font-weight: 500; letter-spacing: 0.1em; color: var(--accent); }
-.card-signal { margin-left: auto; color: var(--muted); white-space: nowrap; }
-.card-name { margin: 4px 0 2px; font-weight: 700; font-size: 17px; line-height: 20px; letter-spacing: -0.005em; color: var(--ink); overflow-wrap: anywhere; }
-.card-what { font-style: italic; color: var(--ink-2); }
-.card .p { margin-bottom: 4px; }
-.card-number { margin: 3px 0 6px; padding: 1px 0 2px 8px; border-left: 3px solid var(--accent); }
-.card-number .value { font-weight: 600; font-size: 20px; line-height: 23px; font-variant-numeric: lining-nums tabular-nums; color: var(--ink); }
-.card-number .says { color: var(--ink-2); }
-.card-meta { margin-top: auto; display: flex; flex-direction: column; gap: 1px; font-family: var(--mono); font-size: 12px; line-height: 15px; color: var(--muted); }
-.card-code { color: var(--ink-2); }
-.card-code { overflow-wrap: break-word; }
-.card-source { overflow-wrap: anywhere; }
-.also > .label { margin-top: 0; }
-.also-item { margin-bottom: 5px; }
-.also-item strong { color: var(--ink); }
+/* Fresh Ink: the night's new AI methods as a newspaper of one to four pages. The front page has
+   ears either side of the nameplate, an edition bar, the black FRESH INK flag, the lead's headline
+   and deck, then two stories, IN BRIEF and INSIDE. Stories go two to a row with a rule between;
+   every one ends in a QR code. Charts are drawn in the serif at 12 px: series told apart by solid,
+   hatched and outlined bars and by line weight, never by grey shades alone. */
+.page-fresh { gap: 7px; padding: 30px 40px 28px; }
+.fi-mast { display: grid; grid-template-columns: 148px minmax(0, 1fr) 148px; align-items: center; gap: 16px; }
+.fi-mast .nameplate { text-align: center; font-size: 58px; line-height: 60px; }
+.fi-ear { padding: 4px 7px; border: 1px solid var(--ink); text-align: center; font-family: var(--mono); font-size: 12px; line-height: 15px; color: var(--ink); text-wrap: balance; }
+.fi-bar { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0 3px; border-top: 1px solid var(--ink); border-bottom: 3px double var(--ink);
+  font-family: var(--mono); font-size: 12px; line-height: 16px; letter-spacing: 0.06em; color: var(--ink); }
+.fi-flag-row { display: flex; align-items: center; gap: 12px; }
+.fi-flag { flex: 0 0 auto; padding: 4px 11px 3px; background: var(--ink); color: var(--paper); font-weight: 700; font-size: 21px; line-height: 24px; letter-spacing: 0.14em; }
+.running + .fi-flag-row .fi-flag { font-size: 17px; line-height: 20px; padding: 3px 9px 2px; }
+.fi-running .fi-flag { display: inline-block; margin-left: 10px; font-size: 13px; line-height: 16px; padding: 2px 7px 1px; vertical-align: 3px; }
+.fi-flag-rule { flex: 1 1 0; border-top: 3px solid var(--ink); }
+.fi-flag-tag { flex: 0 0 auto; font-style: italic; font-size: 14px; line-height: 18px; color: var(--ink-2); }
+.fi-h1 { margin: 2px 0 0; text-align: center; font-weight: 700; font-size: 32px; line-height: 36px; letter-spacing: -0.01em; text-wrap: balance; color: var(--ink); }
+.fi-deck { margin: 0 auto; max-width: 620px; text-align: center; font-style: italic; font-size: 15px; line-height: 20px; color: var(--ink-2); text-wrap: balance; }
+.fi-flow { flex: 1 1 auto; min-height: 0; overflow: hidden; box-sizing: border-box; padding-bottom: 2px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 16px; color: var(--ink); }
+.fi-row { flex: 0 0 auto; position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 26px; padding-top: 8px; border-top: 1px solid var(--ink); }
+.fi-row::after { content: ""; position: absolute; left: 50%; top: 8px; bottom: 0; border-left: 1px solid var(--rule-light); }
+.fi-row > :only-child { grid-column: 1 / -1; }
+.fi-cols { flex: 1 1 auto; min-height: 0; position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 26px; border-top: 1px solid var(--ink); padding-top: 8px; }
+.fi-cols::after { content: ""; position: absolute; left: 50%; top: 8px; bottom: 0; border-left: 1px solid var(--rule-light); }
+.fi-col { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 9px; }
+.fi-col > * + * { border-top: 1px solid var(--ink); padding-top: 8px; }
+.fi-row:has(> :only-child)::after { display: none; }
+.fi-box { min-width: 0; }
+.fi-story { display: flex; flex-direction: column; gap: 4px; }
+.fi-kicker { font-family: var(--mono); font-size: 12px; line-height: 15px; letter-spacing: 0.04em; color: var(--accent); }
+.fi-head { font-weight: 700; font-size: 17px; line-height: 20px; letter-spacing: -0.005em; text-wrap: balance; color: var(--ink); }
+.fi-body { margin: 0; text-align: justify; }
+.fi-body > strong:first-child { color: var(--ink); }
+.fi-number { padding: 1px 0 2px 8px; border-left: 3px solid var(--accent); }
+.fi-number .value { font-weight: 600; font-size: 20px; line-height: 23px; font-variant-numeric: lining-nums tabular-nums; }
+.fi-number .says { color: var(--ink-2); }
+.fi-chart { display: flex; flex-direction: column; gap: 3px; }
+.fi-chart-title { font-weight: 600; font-size: 12.5px; line-height: 16px; }
+.fi-chart-holder { padding: 2px 0; }
+.fi-chart-svg { display: block; overflow: visible; }
+.fi-chart-svg text { font-family: var(--serif); font-size: 12px; fill: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.fi-chart-svg .solid { fill: var(--ink); }
+.fi-chart-svg .outline { fill: var(--paper); stroke: var(--ink); stroke-width: 1.25; }
+.fi-chart-svg .hatch { fill: url(#fi-hatch); stroke: var(--ink); stroke-width: 1.25; }
+.fi-chart-svg .axis { stroke: var(--ink); stroke-width: 1; }
+.fi-chart-svg .grid { stroke: var(--rule-light); stroke-width: 1; }
+.fi-chart-svg .ref { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 3; }
+.fi-chart-svg .series { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
+.fi-chart-svg .series.thin { stroke-width: 1.25; }
+.fi-chart-svg .dot { fill: var(--ink); stroke: var(--ink); stroke-width: 1.4; }
+.fi-chart-svg .dot.open { fill: var(--paper); }
+.fi-shows, .fi-data { margin: 0; font-size: 12px; line-height: 15.5px; color: var(--ink-2); }
+.fi-shows > strong:first-child, .fi-data > strong:first-child { color: var(--ink); }
+.fi-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding-top: 3px; }
+.fi-foot-words { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fi-when { margin: 0; font-style: italic; color: var(--ink-2); }
+.fi-when > strong:first-child { font-style: normal; color: var(--ink); }
+.fi-src { font-family: var(--mono); font-size: 12px; line-height: 15px; color: var(--muted); overflow-wrap: break-word; }
+.fi-qr { flex: 0 0 auto; display: block; }
+.fi-section-head { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 13px; line-height: 16px; letter-spacing: 0.18em; color: var(--ink); }
+.fi-section-head.left { gap: 10px; }
+.fi-rule { flex: 1 1 0; border-top: 1px solid var(--ink); }
+.fi-briefs { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; border-top: 3px double var(--ink); }
+.fi-briefs-grid { display: grid; column-gap: 18px; }
+.fi-brief { display: flex; flex-direction: column; gap: 5px; font-size: 12px; line-height: 16px; }
+.fi-brief + .fi-brief { border-left: 1px solid var(--rule-light); padding-left: 9px; margin-left: -9px; }
+.fi-brief-text { margin: 0; }
+.fi-also { display: flex; flex-direction: column; gap: 5px; }
+.fi-also-item { margin: 0; }
+.fi-made { display: flex; flex-direction: column; gap: 5px; border: 1px solid var(--ink); padding: 8px 10px 9px; }
+.fi-made-title { font-weight: 700; font-size: 13px; line-height: 16px; letter-spacing: 0.18em; }
+.fi-made-text { margin: 0; font-size: 12px; line-height: 16px; }
+.fi-inside { flex: 0 0 auto; margin: auto 0 0; padding: 5px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); font-size: 12px; line-height: 16px; }
+.fi-inside-label { font-weight: 700; font-size: 13px; letter-spacing: 0.18em; margin-right: 10px; }
+.fi-inside-page { margin-right: 10px; }
 
 /* closing band and footer */
 .closing { display: flex; gap: 16px; align-items: baseline; border-top: 3px solid var(--ink); padding-top: 7px; }

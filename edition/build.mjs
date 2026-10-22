@@ -81,11 +81,15 @@ const LABELS = {
   nameplate: [], date: ["weekday", "day", "month", "year"], issue: ["issue"], print_time: ["time"], continued: ["title"],
   sources: [], takeaway: [], continues: ["next", "page", "pages"], last_page: ["page", "pages"],
   shows: [], does: [], says: [], symbols: [],
-  radar_running: [], radar_kicker: ["count"], radar_scanned: ["papers", "models", "repos", "posts"], radar_standfirst: ["total", "count"],
-  radar_how: [], radar_when: [], radar_also: [], radar_sources: [],
+  radar_running: [], radar_how: [], radar_when: [], radar_also: [], radar_sources: [],
+  fi_flag: [], fi_tagline: [], fi_ear_scanned: ["total"], fi_ear_checked: [], fi_count: ["count"], fi_continued: ["page"],
+  fi_brief: [], fi_inside: [], fi_inside_page: ["page"], fi_inside_more: ["count"], fi_data: [],
+  fi_made_title: [], fi_made: [], fi_scanned_title: [], fi_scanned_total: ["total", "count"],
+  fi_src_arxiv: [], fi_src_hf: [], fi_src_hn: [], fi_src_trending: [], fi_src_letters: [], fi_src_blogs: [], fi_src_github: [], fi_src_models: [],
 };
 const RADAR_ID = /^(arxiv:\d{4}\.\d{4,5}|github:[\w.-]+\/[\w.-]+|model:[\w.-]+\/[\w.-]+|blog:[a-z0-9-]+:[a-z0-9.-]+|web:[a-z0-9.-]+:[a-z0-9.-]+)$/;
-const RADAR_MIN = 5, RADAR_MAX = 17;  // up to three pages of six cells, the list in the last one
+const RADAR_MIN = 5, RADAR_MAX = 17;  // Fresh Ink: five to seventeen cards on one to four pages
+const FI_BRIEFS = 4;                  // cards IN BRIEF on the front page
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- labels --------------------------------------------------------------------------------
@@ -156,6 +160,57 @@ function validate(issue, labels) {
       text(spec, "label", `${where}.${key}`);
       if (!t.rows.every((row) => Array.isArray(row[spec.column]))) errors.push(`${where}.${key}.column: must point at a [before, after] column`);
       if (key === "chart" && !(typeof spec.min === "number" && typeof spec.max === "number" && spec.max > spec.min)) errors.push(`${where}.chart: needs min < max`);
+    }
+  }
+
+  // A Fresh Ink chart, redrawn from its source's own table (radar.py check holds its numbers to it).
+  function checkChart(ch, at) {
+    if (!ch || typeof ch !== "object" || Array.isArray(ch)) { errors.push(`${at}: an object {kind, title, what, table, ...} (see README.md, Fresh Ink)`); return; }
+    if (!["bars", "groups", "line"].includes(ch.kind)) { errors.push(`${at}.kind: "bars", "groups" or "line"`); return; }
+    for (const k of ["title", "what", "table"]) text(ch, k, at);
+    const num = (v) => typeof v === "number" && Number.isFinite(v);
+    const strs = (v, n) => Array.isArray(v) && v.length === n && v.every((x) => typeof x === "string" && x.trim());
+    if (ch.decimals != null && !(Number.isInteger(ch.decimals) && ch.decimals >= 0 && ch.decimals <= 3)) errors.push(`${at}.decimals: 0 to 3`);
+    if (ch.unit != null && typeof ch.unit !== "string") errors.push(`${at}.unit: text printed after each value, like "%" or " ms"`);
+    if (ch.kind === "bars") {
+      const n = Array.isArray(ch.rows) ? ch.rows.length : 0;
+      if (n < 2 || n > 10 || !ch.rows.every((r) => Array.isArray(r) && r.length === 2 && typeof r[0] === "string" && r[0].trim() && num(r[1]) && r[1] >= 0))
+        errors.push(`${at}.rows: 2 to 10 rows of [label, a number of 0 or more]`);
+      for (const k of ["labels", "sub"]) if (ch[k] != null && !strs(ch[k], n)) errors.push(`${at}.${k}: one text per row`);
+      if (ch.accent != null && !(Array.isArray(ch.accent) && ch.accent.every((x) => Number.isInteger(x) && x >= 0 && x < n))) errors.push(`${at}.accent: row numbers, counting from 0`);
+      if (ch.side != null && !(ch.side && typeof ch.side.label === "string" && ch.side.label.trim() && Array.isArray(ch.side.values) && ch.side.values.length === n
+          && ch.side.values.every((v) => num(v) || (typeof v === "string" && v.trim())))) errors.push(`${at}.side: {label, values: one per row}`);
+      if (ch.max != null && !(num(ch.max) && ch.max > 0)) errors.push(`${at}.max: a number above 0`);
+    } else if (ch.kind === "groups") {
+      const k = Array.isArray(ch.series) ? ch.series.length : 0;
+      if (k < 2 || k > 3 || !strs(ch.series, k)) errors.push(`${at}.series: the names of 2 or 3 series`);
+      const n = Array.isArray(ch.rows) ? ch.rows.length : 0;
+      if (n < 2 || n > 8 || !ch.rows.every((r) => Array.isArray(r) && r.length === k + 1 && typeof r[0] === "string" && r[0].trim() && r.slice(1).every((v) => num(v) && v >= 0)))
+        errors.push(`${at}.rows: 2 to 8 rows of [label, one number of 0 or more per series]`);
+      if (ch.max != null && !(num(ch.max) && ch.max > 0)) errors.push(`${at}.max: a number above 0`);
+    } else {
+      const x = ch.x || {}, y = ch.y || {};
+      const byLabel = Array.isArray(x.labels);
+      const xs = byLabel ? x.labels : x.values;
+      if (!Array.isArray(xs) || xs.length < 2 || xs.length > 12 || !xs.every((v) => (byLabel ? typeof v === "string" && v.trim() : num(v) && (!x.log || v > 0))))
+        errors.push(`${at}.x: {labels: 2 to 12 names} or {values: 2 to 12 numbers${x.log ? " above 0" : ""}, log: true for a log scale}`);
+      if (x.title != null && typeof x.title !== "string") errors.push(`${at}.x.title: text`);
+      if (!(num(y.min) && num(y.max) && y.max > y.min)) errors.push(`${at}.y: {min, max} with min < max`);
+      if (y.ticks != null && !(Array.isArray(y.ticks) && y.ticks.every((t) => num(t) && t >= y.min && t <= y.max))) errors.push(`${at}.y.ticks: numbers between min and max`);
+      const ss = Array.isArray(ch.series) ? ch.series : [];
+      if (ss.length < 1 || ss.length > 3) errors.push(`${at}.series: 1 to 3 lines`);
+      ss.forEach((s, i) => {
+        if (!s || typeof s.name !== "string" || !s.name.trim()) errors.push(`${at}.series[${i}].name: required text`);
+        const pts = s && s.points;
+        if (!Array.isArray(pts) || pts.length < 2 || pts.length > 12) { errors.push(`${at}.series[${i}].points: 2 to 12 points [x, y] or [x, y, label]`); return; }
+        pts.forEach((pt, j) => {
+          const ok = Array.isArray(pt) && (pt.length === 2 || (pt.length === 3 && typeof pt[2] === "string" && pt[2].trim())) && Array.isArray(xs) && xs.includes(pt[0])
+            && num(pt[1]) && num(y.min) && pt[1] >= y.min && pt[1] <= y.max;
+          if (!ok) errors.push(`${at}.series[${i}].points[${j}]: [x from x.${byLabel ? "labels" : "values"}, y between y.min and y.max, an optional label]`);
+        });
+      });
+      if (ch.refs != null && !(Array.isArray(ch.refs) && ch.refs.every((r) => r && num(r.y) && typeof r.label === "string" && r.label.trim() && num(y.min) && r.y >= y.min && r.y <= y.max)))
+        errors.push(`${at}.refs: [{y, label}] dashed reference lines within y`);
     }
   }
 
@@ -266,10 +321,22 @@ function validate(issue, labels) {
         caps(c.area, `${at}.area`);
         text(c, "signal", at, true);
         text(c, "code", at, true);
+        text(c, "headline", at, true);
         if (typeof c.code === "string" && /^https?:\/\//.test(c.code)) errors.push(`${at}.code: without https:// (github.com/owner/repo)`);
+        if (c.link != null) { if (typeof c.link !== "string" || !/^https:\/\/[^\s]+$/.test(c.link)) errors.push(`${at}.link: the full https:// address the QR code opens`); }
+        else if (typeof c.id === "string" && /^(blog|web):/.test(c.id)) errors.push(`${at}.link: a blog or web card needs its page's address (https://...) for the QR code`);
+        if (c.brief != null && typeof c.brief !== "boolean") errors.push(`${at}.brief: true or false`);
+        if (c.chart != null) {
+          if (c.brief) errors.push(`${at}.chart: a brief has no room for a chart`);
+          checkChart(c.chart, `${at}.chart`);
+        }
         if (!c.number || typeof c.number !== "object") errors.push(`${at}.number: {value, says, quote}`);
         else for (const k of ["value", "says", "quote"]) text(c.number, k, `${at}.number`);
       });
+      const cards = Array.isArray(r.items) ? r.items.filter((c) => c && typeof c === "object") : [];
+      const briefs = cards.filter((c) => c.brief === true).length;
+      if (briefs > FI_BRIEFS) errors.push(`radar.items: ${briefs} cards are "brief"; IN BRIEF holds ${FI_BRIEFS}`);
+      if (cards.length && cards.length - briefs < 2) errors.push("radar.items: the front page needs two stories (cards that are not \"brief\")");
       if (r.also != null) {
         if (!Array.isArray(r.also) || r.also.length > 6) errors.push("radar.also: up to 6 {id, title, text}");
         else r.also.forEach((a, i) => { for (const k of ["id", "title", "text"]) text(a, k, `radar.also[${i}]`); });
@@ -409,7 +476,24 @@ function textRuns(issue) {
       add(c.number && c.number.says, at + ".number.says");
       add(c.code, at + ".code", mono);
       add(c.source, at + ".source", mono);
+      add(c.headline, at + ".headline");
       // number.quote is the source's own sentence for the check; it is not printed
+      const ch = c.chart;
+      if (ch && typeof ch === "object") {
+        add(ch.title, at + ".chart.title");
+        add(ch.what, at + ".chart.what");
+        add(ch.table, at + ".chart.table");
+        // what the drawing itself prints, as it is (no markup inside a chart)
+        const raw = (v, where) => { if (typeof v === "string" || typeof v === "number") out.push({ text: String(v), where: at + ".chart." + where, raw: true }); };
+        (ch.rows || []).forEach((row, j) => (Array.isArray(row) ? row : []).forEach((v, k) => raw(v, `rows[${j}][${k}]`)));
+        for (const key of ["labels", "sub", "series"]) (Array.isArray(ch[key]) ? ch[key] : []).forEach((v, j) => (typeof v === "string" ? raw(v, `${key}[${j}]`) : v && raw(v.name, `${key}[${j}].name`)));
+        if (ch.side) { raw(ch.side.label, "side.label"); (ch.side.values || []).forEach((v, j) => raw(v, `side.values[${j}]`)); }
+        if (ch.x) { (ch.x.labels || ch.x.values || []).forEach((v, j) => raw(v, `x[${j}]`)); raw(ch.x.title, "x.title"); }
+        if (ch.y) (ch.y.ticks || []).forEach((v, j) => raw(v, `y.ticks[${j}]`));
+        (Array.isArray(ch.series) ? ch.series : []).forEach((s, j) => (s && Array.isArray(s.points) ? s.points : []).forEach((pt, k) => Array.isArray(pt) && pt.forEach((v, m) => raw(v, `series[${j}].points[${k}][${m}]`))));
+        (Array.isArray(ch.refs) ? ch.refs : []).forEach((rf, j) => rf && raw(rf.label, `refs[${j}].label`));
+        raw(ch.unit, "unit");
+      }
     });
     (Array.isArray(radar.also) ? radar.also : []).forEach((a, i) => {
       if (!a) return;
@@ -437,10 +521,13 @@ function labelRuns(labels) {
   (labels.months || []).forEach((m, i) => add(m, `months[${i}]`, { mono: true }));
   add(labels.nameplate, "nameplate (in the footer)", { mono: true });
   add(labels.continued, "continued", { italic: true });
-  for (const key of ["shows", "does", "says", "symbols", "radar_how", "radar_when"]) add(labels[key], key);
-  for (const key of ["radar_kicker", "radar_scanned", "radar_also", "radar_sources"]) add(labels[key], key, { mono: true });
+  for (const key of ["shows", "does", "says", "symbols", "radar_how", "radar_when", "radar_also"]) add(labels[key], key);
+  add(labels.radar_sources, "radar_sources", { mono: true });
   add(labels.radar_running, "radar_running", { italic: true });
-  add(labels.radar_standfirst, "radar_standfirst", { italic: true });
+  // Fresh Ink: the ears and the edition bar in mono, the flag's tagline and "continued" in italic, the rest in the serif
+  for (const key of ["fi_ear_scanned", "fi_ear_checked", "fi_count"]) add(labels[key], key, { mono: true });
+  for (const key of ["fi_tagline", "fi_continued"]) add(labels[key], key, { italic: true });
+  for (const key of Object.keys(LABELS).filter((k) => k.startsWith("fi_") && !["fi_ear_scanned", "fi_ear_checked", "fi_count", "fi_tagline", "fi_continued"].includes(k))) add(labels[key], key);
   return out;
 }
 
@@ -637,7 +724,7 @@ function summary(report) {
   if (report.layout && report.layout.pages && report.layout.pages.length) {
     const pages = report.layout.pages;
     lines.push(`  pages: ${pages.length} (${pages.map((p) => p.kind).join(", ")}), leading ${report.layout.leading}px, fill ${pages.map((p) => p.fill).join(" / ")}`);
-    if (report.layout.radar_free_px) lines.push(`  radar: free room per cell ${report.layout.radar_free_px.join(" / ")} px (one line is ${report.layout.leading} px)`);
+    if (report.layout.fresh_free_px) lines.push(`  fresh ink: free room per page ${report.layout.fresh_free_px.join(" / ")} px; ${report.layout.charts} chart(s), ${report.layout.qr.length} QR code(s)`);
   }
   if (report.pdf) lines.push(`  pdf: ${report.pdf.pages} page(s), text on every page matches the layout`);
   if (report.preflight) lines.push("  preflight: " + report.preflight);

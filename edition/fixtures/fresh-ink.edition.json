@@ -1,0 +1,767 @@
+{
+ "version": 1,
+ "issue": 5,
+ "date": "2026-10-22",
+ "print_time": "07:30",
+ "lang": "en",
+ "radar": {
+  "date": "2026-10-22",
+  "scanned": {
+   "hf": 150,
+   "arxiv": 614,
+   "github": 8,
+   "blogs": 10,
+   "trending": 26,
+   "models": 8,
+   "hn": 86,
+   "letters": 25
+  },
+  "headline": "16 times the training length in state tracking, a playable game world at 60 FPS on one GPU, and inference 77% cheaper through the vocabulary",
+  "items": [
+   {
+    "id": "arxiv:2610.25736",
+    "area": "ROBOTICS",
+    "signal": "111 HF upvotes",
+    "name": "CEL",
+    "headline": "96 Robots Learn From Each Other",
+    "what": "Collective experience learning: robots in the field share what they learn to improve one shared policy.",
+    "how": "When a robot fails, a method called **FERT** finds the moment it went wrong and pulls similar stretches of trajectory from the fleet's shared successes; their actions become new training data, with no extra demonstrations or human corrections.",
+    "when": "When a fleet outgrows its operators; across five real tasks, success ran from 93.3% to 99.2%.",
+    "number": {
+     "value": "79.2 → 98.3",
+     "says": "phone packaging success (%), learning with 96 robots",
+     "quote": "On multi-stage phone packaging, learning with 96 robots increases success from 79.2% to 98.3%."
+    },
+    "source": "Yu et al. · arXiv 2610.25736",
+    "link": "https://arxiv.org/abs/2610.25736",
+    "chart": {
+     "kind": "line",
+     "title": "Phone packaging success, % of tries",
+     "table": "Table 11e, Yu et al.",
+     "what": "60 tries on each of two held-out robots. Human corrections (HG-DAgger) level off with 16 robots; fleet experience (FERT) starts from a 79.2% checkpoint, dips with few robots, then climbs as robots are added.",
+     "x": {
+      "values": [
+       1,
+       4,
+       8,
+       16,
+       32,
+       64,
+       96
+      ],
+      "log": true,
+      "title": "robots learning together (log scale)"
+     },
+     "y": {
+      "min": 0,
+      "max": 100,
+      "ticks": [
+       0,
+       25,
+       50,
+       75,
+       100
+      ]
+     },
+     "decimals": 1,
+     "series": [
+      {
+       "name": "fleet experience",
+       "points": [
+        [
+         4,
+         50.83
+        ],
+        [
+         8,
+         70.83
+        ],
+        [
+         16,
+         86.67
+        ],
+        [
+         32,
+         92.5
+        ],
+        [
+         64,
+         95.0
+        ],
+        [
+         96,
+         98.33
+        ]
+       ]
+      },
+      {
+       "name": "human corrections",
+       "points": [
+        [
+         1,
+         1.67
+        ],
+        [
+         4,
+         32.5
+        ],
+        [
+         8,
+         65.0
+        ],
+        [
+         16,
+         67.5
+        ]
+       ]
+      }
+     ],
+     "refs": [
+      {
+       "y": 79.17,
+       "label": "start, 79.2%"
+      }
+     ]
+    }
+   },
+   {
+    "id": "arxiv:2610.27628",
+    "area": "REASONING",
+    "signal": "147 HF upvotes",
+    "name": "PAR",
+    "headline": "A Small Looped Model Stays Right at 16× Its Training Length",
+    "what": "Training that lets a looped language model solve problems far longer than the ones it saw.",
+    "how": "The same block of layers runs again and again; PAR trains the k-th loop to match the state after k operations (**progress-aligned targets**) and rescales the state to its first-loop norm on every loop (**norm anchoring**). Both are needed.",
+    "when": "For tasks that update a state step by step, like tracking objects, on inputs longer than in training.",
+    "number": {
+     "value": "16×",
+     "says": "the training length: a Qwen2.5-0.5B model trained on at most 32 moves is 95.5% right at 512",
+     "quote": "On swap-S_5, a Qwen2.5-0.5B model trained on at most 32 moves achieves 95.5\\% mean full-state accuracy at 512 moves, or 16times the training length"
+    },
+    "source": "Wang et al. · arXiv 2610.27628",
+    "link": "https://arxiv.org/abs/2610.27628",
+    "chart": {
+     "kind": "groups",
+     "title": "Full-state accuracy %, trained on up to 32 moves",
+     "table": "Table 1, Wang et al.; Transformer and RLT as reported by Zhang et al.",
+     "what": "five boxes and a run of swaps; an answer counts only if every box is right. RLT falls to 55.7% at 16 times the length; a plain Transformer and chain of thought stay near zero.",
+     "series": [
+      "256 moves (8×)",
+      "512 moves (16×)"
+     ],
+     "rows": [
+      [
+       "PAR",
+       99.5,
+       95.5
+      ],
+      [
+       "RLT",
+       97.3,
+       55.7
+      ],
+      [
+       "Transformer",
+       0.85,
+       0.85
+      ],
+      [
+       "Chain of thought",
+       0.8,
+       0.8
+      ]
+     ]
+    }
+   },
+   {
+    "id": "arxiv:2610.27999",
+    "area": "GAMES",
+    "signal": "178 HF upvotes",
+    "name": "Matrix-Game 4.0",
+    "headline": "A Playable World at 60 FPS on One Consumer GPU",
+    "what": "A real-time playable world: a game engine holds the rules, a video model draws the picture.",
+    "how": "A light **game engine** keeps state and rules in code and draws low-poly frames; a **coding agent** turns the player's idea into game code; the video model paints each frame in detail, four frames at a time, in one or two denoising steps.",
+    "when": "For games or simulations whose state must not live in a video model's memory; code and weights are open.",
+    "number": {
+     "value": "60 FPS",
+     "says": "480p gameplay on one RTX 5090; 112 ms from key press to screen",
+     "quote": "Matrix-Game 4.0 enables 480p, 60 FPS gameplay on a single NVIDIA RTX 5090 with a key-press-to-display latency of 112 ms"
+    },
+    "source": "Zhang et al. · arXiv 2610.27999",
+    "link": "https://arxiv.org/abs/2610.27999",
+    "chart": {
+     "kind": "bars",
+     "title": "Key press to screen, real-time world models",
+     "table": "Table 3, Zhang et al.",
+     "what": "end-to-end latency as each system reports it; shorter is better. The other three ran on data-center GPUs.",
+     "rows": [
+      [
+       "Matrix-Game 4.0",
+       112
+      ],
+      [
+       "StreamRender-H3",
+       517
+      ],
+      [
+       "AgentGarten",
+       878
+      ],
+      [
+       "Magpie",
+       1550
+      ]
+     ],
+     "labels": [
+      "112 ms",
+      "≈517 ms",
+      "≈878 ms",
+      "≈1.55 s"
+     ],
+     "sub": [
+      "1× RTX 5090",
+      "8× GB200",
+      "1× H100",
+      "1× H100"
+     ],
+     "accent": [
+      0
+     ]
+    }
+   },
+   {
+    "id": "arxiv:2610.26860",
+    "area": "AGENTS",
+    "signal": "101 HF upvotes",
+    "name": "OpenVLHarness",
+    "headline": "Tools Beat Thinking Harder",
+    "what": "An open harness that gives a vision model tools and keeps their output for the whole query.",
+    "how": "A **capability layer** calls segmentation, depth and search through one interface and turns their output into images and short text; a **persistent multimodal memory** keeps it all by name for a coding agent to program over.",
+    "when": "When a bigger thinking budget stops paying off: xhigh to max cost 2.7 times the tokens for 0.7 points.",
+    "number": {
+     "value": "+11.2 pts",
+     "says": "Qwen3-VL-8B's average over 22 benchmarks, against the same model without tools",
+     "quote": "including +11.2 with Qwen3-VL-8B, +9.7 with Kimi K3, and +9.9 with GPT-6 Astra"
+    },
+    "code": "github.com/uclanlp/OpenVLHarness",
+    "source": "Zhou et al. · arXiv 2610.26860",
+    "link": "https://github.com/uclanlp/OpenVLHarness",
+    "chart": {
+     "kind": "line",
+     "title": "GPT-6 Luna, average score over 22 benchmarks",
+     "table": "Table 2, Zhou et al.",
+     "what": "more thinking lifts the bare model from 45.8 to 48.0; with tools it scores 56.5 at medium effort, for $0.92 per 1k questions against $3.17. The axis does not start at zero.",
+     "x": {
+      "labels": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "title": "reasoning effort"
+     },
+     "y": {
+      "min": 40,
+      "max": 65,
+      "ticks": [
+       40,
+       50,
+       60
+      ]
+     },
+     "decimals": 1,
+     "series": [
+      {
+       "name": "with tools",
+       "points": [
+        [
+         "medium",
+         56.5,
+         "56.5 · $0.92"
+        ],
+        [
+         "high",
+         58.2
+        ],
+        [
+         "xhigh",
+         58.6
+        ],
+        [
+         "max",
+         60.1
+        ]
+       ]
+      },
+      {
+       "name": "thinking only",
+       "points": [
+        [
+         "medium",
+         45.8
+        ],
+        [
+         "high",
+         46.7
+        ],
+        [
+         "xhigh",
+         47.3
+        ],
+        [
+         "max",
+         48.0,
+         "48.0 · $3.17"
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "id": "model:tencent/Hy-Memory-30B-A3B",
+    "area": "MEMORY",
+    "signal": "272 HF likes",
+    "name": "Hy-Memory-30B-A3B",
+    "headline": "A Small Model Writes the Memory",
+    "what": "A small memory writer, about 3B active parameters, that decides what long-term memory keeps.",
+    "how": "It replaces the general LLM inside frameworks such as Mem0 and MemOS: what to keep, in how much detail, and how new facts update old ones. Trained by **Memory On-Policy Distillation**, then **Attributed Memory Reinforcement Learning**.",
+    "when": "To move a memory assistant's writing step to a cheap model; it also carried over to EverMemOS, unseen in training.",
+    "number": {
+     "value": "55.49",
+     "says": "average over four memory frameworks; Claude Opus 5 gets 54.62 in the same setup",
+     "quote": "| **Hy-Memory-30B-A3B** | **54.02** | **60.55** | **50.51** | **56.89** | **55.49** |"
+    },
+    "code": "huggingface.co/tencent/Hy-Memory-30B-A3B",
+    "source": "Tencent Hunyuan · Hugging Face",
+    "link": "https://huggingface.co/tencent/Hy-Memory-30B-A3B",
+    "chart": {
+     "kind": "bars",
+     "title": "Average score as the memory writer",
+     "table": "model card, Table 1",
+     "what": "the mean of four memory harnesses, changing only the model that writes the memory; Tencent's own figures.",
+     "rows": [
+      [
+       "Hy-Memory-30B-A3B",
+       55.49
+      ],
+      [
+       "Claude Opus 5",
+       54.62
+      ],
+      [
+       "DeepSeek V4.1 Flash",
+       53.64
+      ],
+      [
+       "Hy3",
+       51.63
+      ],
+      [
+       "Qwen3.6-35B-A3B",
+       50.37
+      ],
+      [
+       "Hy3-A3B Base",
+       47.66
+      ],
+      [
+       "Qwen3-30B-A3B",
+       44.37
+      ]
+     ],
+     "accent": [
+      0
+     ],
+     "decimals": 2
+    }
+   },
+   {
+    "id": "arxiv:2610.26397",
+    "area": "TRAINING",
+    "signal": "arXiv, 21 Oct",
+    "name": "Bridged Self-Distillation",
+    "headline": "A Student Learns From the Teacher's Answer Alone",
+    "what": "On-policy distillation (BSD) that passes a teacher's reasoning to a small student without the teacher's probabilities.",
+    "how": "The teacher only writes a solution. A copy of the student that has read it (the **self-teacher**) scores the student's own attempts token by token; a verifier says which succeeded.",
+    "when": "When the teacher uses another tokenizer or is a closed model behind an API.",
+    "number": {
+     "value": "+3.3 to 8.6 pts",
+     "says": "over SFT in average score, for all four students; SFT fell below the base model for three of them",
+     "quote": "BSD outperforms SFT for all four students by 3.3 to 8.6 points in average score, while SFT falls below the base model for three of them."
+    },
+    "code": "github.com/TUMLegalTech/Bridged-Self-Distillation",
+    "source": "Chen et al. · arXiv 2610.26397",
+    "link": "https://github.com/TUMLegalTech/Bridged-Self-Distillation",
+    "chart": {
+     "kind": "groups",
+     "title": "Average math score, teacher Qwen3-32B",
+     "table": "Table 1, Chen et al. (shared tokenizer)",
+     "what": "AIME24, AIME25 and HMMT25, four tries each. Fine-tuning on the teacher's answers (SFT) leaves three students below where they started; BSD lifts all four.",
+     "series": [
+      "start",
+      "SFT",
+      "BSD"
+     ],
+     "decimals": 1,
+     "rows": [
+      [
+       "Qwen3-4B",
+       59.2,
+       60.6,
+       63.9
+      ],
+      [
+       "Qwen3-4B-Instruct",
+       44.4,
+       40.8,
+       45.8
+      ],
+      [
+       "Qwen3-1.7B",
+       35.8,
+       30.0,
+       38.6
+      ],
+      [
+       "Qwen3-0.6B",
+       10.8,
+       9.2,
+       13.6
+      ]
+     ]
+    }
+   },
+   {
+    "id": "arxiv:2610.26782",
+    "area": "RAG",
+    "signal": "arXiv, 21 Oct",
+    "name": "RESIN",
+    "headline": "Keeping Rival Evidence Open",
+    "what": "RAG for questions whose answer rests on several separate chains of evidence.",
+    "how": "The question is split into one-hop needs (**hop-wise decomposition**), a few source-linked units are fetched for each, and a small **reasoning buffer** keeps rival evidence until the final merge instead of committing early.",
+    "when": "When plain retrieval drowns the model in noise, or graph pruning drops the right evidence too early.",
+    "number": {
+     "value": "82.92",
+     "says": "context recall on all of HolisQA (how much of the needed evidence came back); answer relevancy 76.70",
+     "quote": "On the full HolisQA benchmark, Resin achieves 82.92 context recall and 76.70 answer relevancy over all questions"
+    },
+    "code": "github.com/RamonMeng/RESIN",
+    "source": "Meng et al. · arXiv 2610.26782",
+    "link": "https://github.com/RamonMeng/RESIN",
+    "chart": {
+     "kind": "groups",
+     "title": "Context recall on HolisQA, by domain",
+     "table": "Table 3, Meng et al.",
+     "what": "the share of the evidence an answer needs that retrieval brought back. Baselines as published in the CausalRAG2 paper; only RESIN was run by its authors.",
+     "series": [
+      "CausalRAG2",
+      "RESIN"
+     ],
+     "decimals": 2,
+     "rows": [
+      [
+       "Medicine",
+       69.91,
+       80.95
+      ],
+      [
+       "Computer science",
+       60.94,
+       86.27
+      ],
+      [
+       "Business",
+       67.34,
+       84.97
+      ],
+      [
+       "Biology",
+       61.97,
+       84.86
+      ],
+      [
+       "Psychology",
+       60.87,
+       77.95
+      ]
+     ]
+    }
+   },
+   {
+    "id": "arxiv:2610.05416",
+    "area": "VIDEO",
+    "signal": "678 stars",
+    "name": "Prism",
+    "headline": "2K Video With Sound, Trained 2.5× Faster",
+    "what": "Dynamic sparse attention for training video-with-audio generation directly at 2K.",
+    "how": "Tokens are grouped into **macro-zones** in space and time; blocks are cut finer where the picture changes fast and is tightly bound to the sound, and each query's sparsity is chosen on the fly.",
+    "when": "For high-resolution video and audio training, where full attention's cost grows quadratically with resolution.",
+    "number": {
+     "value": "2.5×",
+     "says": "faster training than full attention, with better generation quality",
+     "quote": "Experiments show that Prism achieves 2.5times training speedup compared to full attention, while surpassing it in generation quality."
+    },
+    "code": "github.com/Tencent-Hunyuan/Prism",
+    "source": "Tu et al. · arXiv 2610.05416",
+    "link": "https://github.com/Tencent-Hunyuan/Prism",
+    "chart": {
+     "kind": "bars",
+     "title": "Native 2K training: minutes per step, and quality",
+     "table": "Table 5, Tu et al.",
+     "what": "shorter bars train faster; AQ is aesthetic quality, higher is better. SpargeAttn2 trains faster but scores lower.",
+     "rows": [
+      [
+       "Full attention",
+       26.5
+      ],
+      [
+       "LUVE",
+       18.7
+      ],
+      [
+       "PyramidFlow",
+       18.3
+      ],
+      [
+       "T3",
+       16.9
+      ],
+      [
+       "Prism",
+       10.6
+      ],
+      [
+       "SpargeAttn2",
+       8.4
+      ]
+     ],
+     "side": {
+      "label": "AQ",
+      "values": [
+       "0.42",
+       "0.50",
+       "0.51",
+       "0.53",
+       "0.61",
+       "0.47"
+      ]
+     },
+     "accent": [
+      4
+     ],
+     "decimals": 1
+    }
+   },
+   {
+    "id": "blog:huggingface:kumo-relational",
+    "area": "TABLES",
+    "signal": "HF blog, 21 Oct",
+    "name": "Kumo Relational",
+    "headline": "Predictions Straight From a Relational Database",
+    "what": "A pretrained foundation model that predicts on a relational database in one forward pass, without training.",
+    "how": "It keeps foreign keys and timestamps instead of flattening the tables into one. Attention runs within each table, then across tables as **graph attention**; it fits a task by in-context learning from up to 10000 examples, and was pretrained on fully synthetic databases.",
+    "when": "Instead of building a separate XGBoost pipeline for each prediction such as churn; the task is written as a PQL query.",
+    "number": {
+     "value": "nearly 4 AUROC points",
+     "says": "on average over gradient-boosted trees with expert-engineered features, RelBench V1 classification",
+     "quote": "On RelBench V1 classification tasks, Kumo Relational outperforms gradient-boosted trees on expert-engineered features by nearly 4 AUROC points on average."
+    },
+    "source": "NVIDIA · Hugging Face blog",
+    "link": "https://huggingface.co/blog/nvidia/kumo-relational"
+   },
+   {
+    "id": "arxiv:2609.39490",
+    "area": "MULTIMODAL",
+    "signal": "159 stars",
+    "name": "OmniReasoning",
+    "headline": "Questions That Need Both Sound and Picture",
+    "what": "A benchmark, data engine and training method for questions whose answer needs both the audio and the video.",
+    "how": "The **OmniQA** data engine writes question and answer pairs that need audio and visual evidence together, with timestamped clue chains. **MFSD** (Modality-Factored Self-Distillation) re-scores each answer with audio clues and with visual clues separately, so each token is credited to its evidence.",
+    "when": "When a video model ignores the soundtrack; the data engine produced 112K SFT and 19K RL examples.",
+    "number": {
+     "value": "+12.8 pts",
+     "says": "on OmniVideoBench over the base model Qwen3-Omni-30B-A3B-Thinking; score 50.0%",
+     "quote": "improving the base model Qwen3-Omni-30B-A3B-Thinking by 12.8 and 9.3 percentage points, respectively"
+    },
+    "code": "github.com/PKU-VaLuE-Lab/OmniReasoning",
+    "source": "Qwen · arXiv 2609.39490",
+    "link": "https://github.com/PKU-VaLuE-Lab/OmniReasoning"
+   },
+   {
+    "id": "arxiv:2610.24087",
+    "area": "BENCHMARK",
+    "signal": "291 HF upvotes",
+    "name": "OR-License",
+    "headline": "Agents Take On 31 Paid Consulting Jobs",
+    "what": "A benchmark of whether LLM agents can turn real client documents into expert-level operations research solutions.",
+    "how": "31 instances from paid consulting work worth $3.68 million, with real requirements and data. **ORSim** plays the client; **DAQ** scores a solution against the expert's and gives zero to one that cannot be carried out.",
+    "when": "To see where agents fall down on long jobs: mostly in framing the problem and in code.",
+    "number": {
+     "value": "0.87",
+     "says": "DAQ of the strongest configuration, Grok 4.6 in the Claude Code harness; the expert's solution is 1, and 88.39% of its deliveries were feasible",
+     "quote": "the strongest primary Claude Code configuration achieves 88.39% strict feasibility and a DAQ of 0.87 against the expert reference of 1"
+    },
+    "code": "github.com/NineAbyss/OR-License",
+    "source": "Wang et al. · arXiv 2610.24087",
+    "link": "https://github.com/NineAbyss/OR-License",
+    "chart": {
+     "kind": "bars",
+     "title": "DAQ %, under Claude Code: six of eleven models",
+     "table": "Table 1, Wang et al.",
+     "what": "each delivery scored against the expert's; one that cannot be carried out scores zero. The best five models and the last one.",
+     "rows": [
+      [
+       "Grok 4.6",
+       86.55
+      ],
+      [
+       "GPT-5.6 Sol",
+       85.02
+      ],
+      [
+       "Gemini 3.8 Flash",
+       82.94
+      ],
+      [
+       "Qwen3.8-Max",
+       77.97
+      ],
+      [
+       "Claude Opus 5",
+       77.44
+      ],
+      [
+       "Hy3",
+       43.77
+      ]
+     ],
+     "accent": [
+      0
+     ],
+     "decimals": 2,
+     "max": 100
+    }
+   },
+   {
+    "id": "web:mistral.ai:news-mistral-large-4",
+    "area": "MODEL",
+    "signal": "315 HN points",
+    "name": "Mistral Large 4",
+    "headline": "1 Trillion Parameters, 52 Billion Active",
+    "what": "Mistral's largest model: natively multimodal, with 1 trillion parameters and 52 billion of them active.",
+    "how": "It is in preview on Mistral's API for now, with weights due at the end of the month; architecture and post-training details are not out yet. It was trained from scratch on 3800 NVIDIA Grace Blackwell GPUs in Europe.",
+    "when": "For anyone who wants a strong open-weight model on their own servers, especially for security and coding.",
+    "number": {
+     "value": "61.7%",
+     "says": "of DeepSWE v1.1 software tasks solved; 28.3% on Terminal-Bench 4, by Mistral's own count",
+     "quote": "scoring 61.7% on DeepSWE v1.1, 59.4% on SWE-Atlas-QnA, and 28.3% on Terminal-Bench 4"
+    },
+    "source": "Mistral AI",
+    "link": "https://mistral.ai/news/mistral-large-4/"
+   },
+   {
+    "id": "arxiv:2610.26203",
+    "area": "AGENTS",
+    "signal": "223 HF upvotes",
+    "name": "FocusGUI",
+    "brief": true,
+    "headline": "Where a GUI Agent Should Look",
+    "what": "A light adapter that tells a GUI agent what to focus on at each step.",
+    "how": "It splits the observation into channels, scores each against the step's decision and hands a frozen decoder the best evidence.",
+    "when": "When errors pile up over many agent steps.",
+    "number": {
+     "value": "+33.2 pts",
+     "says": "Type Match, 31.0% to 64.2%, averaged over four backbones",
+     "quote": "Across four omni-modal backbones, it raises overall Type Match by +33.2 and Exact Match by 3.0\\times over the frozen backbone on average"
+    },
+    "code": "github.com/fyzhang1/FocusGUI",
+    "source": "Zhang et al. · arXiv 2610.26203",
+    "link": "https://github.com/fyzhang1/FocusGUI"
+   },
+   {
+    "id": "arxiv:2610.26825",
+    "area": "MEMORY",
+    "signal": "118 HF upvotes",
+    "name": "MemT-1.0",
+    "brief": true,
+    "headline": "Memory Inside the Model",
+    "what": "Models that make memory part of their own computation, not an outside context.",
+    "how": "A native memory block in chosen Transformer blocks is updated token by token.",
+    "when": "For assistants and coding agents with long histories.",
+    "number": {
+     "value": "66×",
+     "says": "less persistent storage than a full KV cache at 128K tokens",
+     "quote": "At a history length of 128K tokens, MemT-1.0-Nano achieves approximately 1.86\\times end-to-end inference speedup and a 66\\times reduction in persistent storage relative to full context KV cache."
+    },
+    "code": "github.com/MemTensor/MemT-1.0",
+    "source": "MemTensor · arXiv 2610.26825",
+    "link": "https://github.com/MemTensor/MemT-1.0"
+   },
+   {
+    "id": "github:headroomlabs-ai/headroom",
+    "area": "TOOLS",
+    "signal": "477 stars today",
+    "name": "Headroom",
+    "brief": true,
+    "headline": "A Leaner Read for Coding Agents",
+    "what": "Compresses what a coding agent reads, on your own machine.",
+    "how": "A router picks a compressor for JSON, code or plain text; the originals stay local.",
+    "when": "When a coding agent's token bill gets big.",
+    "number": {
+     "value": "10144 → 1260",
+     "says": "tokens on a log dump, the FATAL line kept",
+     "quote": "Headroom compressing a 10,144 token log dump to 1,260 tokens while preserving the FATAL line"
+    },
+    "code": "github.com/headroomlabs-ai/headroom",
+    "source": "headroomlabs-ai · GitHub trending",
+    "link": "https://github.com/headroomlabs-ai/headroom"
+   },
+   {
+    "id": "blog:huggingface:vocabx-vocabulary-specialization",
+    "area": "EFFICIENCY",
+    "signal": "HF blog, 21 Oct",
+    "name": "VocabX",
+    "brief": true,
+    "headline": "A Tokenizer Built for Cost",
+    "what": "Rebuilds a small model's tokenizer around what each token costs.",
+    "how": "Output tokens cost more than input tokens, and the choice follows that.",
+    "when": "For a fine-tuned small model on a single task in production.",
+    "number": {
+     "value": "77%",
+     "says": "lower measured inference cost, same base model",
+     "quote": "cut measured inference cost by 77% without changing the base model"
+    },
+    "source": "Dharma-AI · Hugging Face blog",
+    "link": "https://huggingface.co/blog/Dharma-AI/vocabx-vocabulary-specialization"
+   }
+  ],
+  "also": [
+   {
+    "id": "arxiv:2610.22471",
+    "title": "Has GPT-6-Astra Achieved Embodied Intelligence?",
+    "text": "A report that tests GPT-6-Astra on 12 robot benchmarks and 8 real robot setups: capable, but not yet at practical intelligence (452 HF upvotes)."
+   },
+   {
+    "id": "arxiv:2610.26855",
+    "title": "Ropedia W0: Scaling Loco-Manipulation World Models across Embodiments with Human Experience",
+    "text": "The first first-person world model for both humans and robots, trained on 10k hours of human and 3k hours of robot data."
+   },
+   {
+    "id": "arxiv:2610.24963",
+    "title": "DeGMatch: Target-Aware Reasoning Data Selection via Deconfounded Gradient Matching",
+    "text": "Picks reasoning training data to fit a small target set, by matching gradients once their shared dominant directions are removed."
+   },
+   {
+    "id": "github:Graphify-Labs/graphify",
+    "title": "Graphify-Labs/graphify",
+    "text": "A coding-agent skill that turns a codebase, its docs and SQL schemas into a queryable knowledge graph (1434 stars today)."
+   },
+   {
+    "id": "arxiv:2610.09872",
+    "title": "LiveMACE: Process-Aware Evaluation of LLM Agent Capabilities in Evolving Markets",
+    "text": "Follows five LLM agents for 30 days in a live market: returns and measured ability often diverge."
+   }
+  ]
+ }
+}
