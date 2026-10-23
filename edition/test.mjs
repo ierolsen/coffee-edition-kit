@@ -213,10 +213,15 @@ const cases = [
     const d = clone();
     d.radar = OLD_RADAR().radar;
     return d;
-  }, [], (r) => [
-    [r.code === 0, "builds"],
-    [/^front,results,fresh(,fresh)?$/.test(kinds(r)), "the issue's pages, then Fresh Ink: " + kinds(r)],
-  ]],
+  }, [], (r) => {
+    const p3 = r.pdf ? pdfText("radar-issue", 3) : "", p4 = r.pdf && kinds(r).split(",").length > 3 ? pdfText("radar-issue", 4) : "";
+    return [
+      [r.code === 0, "builds"],
+      [/^front,results,fresh,fresh$/.test(kinds(r)), "the issue's pages, then Fresh Ink: " + kinds(r)],
+      [squeeze(p3).includes(squeeze("Page 4.")) && squeeze(p4).includes(squeeze("continued from page 3")),
+        "INSIDE and the running head count pages in the paper (page 4, continued from page 3), not in Fresh Ink"],
+    ];
+  }],
   ["five Fresh Ink pages are refused, with what to do", "fresh-5", () => {
     const d = FRESH();
     d.radar.items.forEach((c) => delete c.brief);

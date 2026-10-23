@@ -635,7 +635,7 @@
 
   // The width a story's chart prints at: half the flow, less the gap between the columns.
   function freshWidths(issue) {
-    const pg = frame("fresh", issue, { cont: true, page: 2 });
+    const pg = frame("fresh", issue, { cont: true, no: 2 });
     document.getElementById("edition").appendChild(pg.el);
     const box = pg.flow.getBoundingClientRect();
     const probe = el("div", "fi-cols", '<div class="fi-col"><div class="fi-story fi-box"></div></div><div class="fi-col"></div>');
@@ -662,7 +662,7 @@
       return s;
     };
     const lead = stories[0];
-    const front = add("fresh", "radar", { lead: lead.c, page: 1 });
+    const front = add("fresh", "radar", { lead: lead.c });
     const pages = [front];
     front.flow.appendChild(fiRow(story(lead, true), story(stories[1])));
     if (briefs.length) front.flow.appendChild(fiBriefs(briefs));
@@ -683,7 +683,7 @@
     closing.push({ cards: [], make: () => fiMade(issue, W.story, problems), what: "how the paper is made" });
     let pg = null;
     const newPage = () => {
-      pg = add("fresh", "radar", { cont: true, page: pages.length + 1 });
+      pg = add("fresh", "radar", { cont: true });
       pages.push(pg);
       pg.cards = [];
       const cols = el("div", "fi-cols");
@@ -712,11 +712,11 @@
       newPage();
       if (!tryIn(pg.cols[0], b)) return "Fresh Ink: " + b.what + " does not fit in an empty column: shorten it";
     }
-    // INSIDE: the names on each later page; the front page must still fit with them
-    pages.slice(1).forEach((p, k) => {
+    // INSIDE: the names on each later page, by the page's number in the paper; the front page must still fit with them
+    pages.slice(1).forEach((p) => {
       const names = p.cards.map((s) => inline(s.c.name));
       if (p === pages[pages.length - 1] && also) names.push(say("fi_inside_more", { count: also.length }));
-      inside.appendChild(el("span", "fi-inside-page", "<strong>" + say("fi_inside_page", { page: k + 2 }) + "</strong> " + names.join(", ")));
+      inside.appendChild(el("span", "fi-inside-page", "<strong>" + say("fi_inside_page", { page: p.no }) + "</strong> " + names.join(", ")));
     });
     if (freshOverflows(front)) return "Fresh Ink: the front page does not fit once INSIDE lists the later pages: shorten the two lead stories";
     if (pages.length > FI_PAGES) return "Fresh Ink runs to " + pages.length + " pages; at most " + FI_PAGES +
@@ -769,7 +769,7 @@
       // a later page: the flag rides in the running head, with where the paper goes on from
       page.appendChild(el("header", "running fi-running",
         '<div><span class="nameplate">' + say("nameplate") + '</span><span class="fi-flag">' + say("fi_flag") + '</span><span class="running-title">' +
-        say("fi_continued", { page: extra.page - 1 }) + '</span></div><span class="running-meta">' + dateLine(issue.date) + " · " + say("issue", { issue: pad3(issue.issue) }) + "</span>"));
+        say("fi_continued", { page: extra.no - 1 }) + '</span></div><span class="running-meta">' + dateLine(issue.date) + " · " + say("issue", { issue: pad3(issue.issue) }) + "</span>"));
     } else {
       page.appendChild(el("header", "running",
         '<div><span class="nameplate">' + say("nameplate") + '</span><span class="running-title">' + say("radar_running") + "</span></div>" +
@@ -855,7 +855,14 @@
     root.innerHTML = "";
     root.style.setProperty("--lh", lh + "px");
     const pages = [];
-    const add = (kind, part, extra) => { const pg = frame(kind, issue, extra); pg.part = part; root.appendChild(pg.el); pages.push(pg); return pg; };
+    const add = (kind, part, extra = {}) => {
+      const pg = frame(kind, issue, { ...extra, no: pages.length + 1 });
+      pg.part = part;
+      pg.no = pages.length + 1;   // its number in the paper, for INSIDE and "continued from"
+      root.appendChild(pg.el);
+      pages.push(pg);
+      return pg;
+    };
     const tooBig = (u) => ({ error: "a block does not fit on an empty page: " + u.textContent.trim().slice(0, 60) });
     const parts = [];
     if (issue.front && issue.front.length) parts.push({ kind: "front", blocks: issue.front });  // a RADAR-only file has no front
